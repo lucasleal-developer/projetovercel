@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
+import { PostgrestError } from '@supabase/supabase-js';
 
 // Essas variáveis de ambiente precisarão ser configuradas na Vercel
 const supabaseUrl = process.env.SUPABASE_URL || '';
@@ -37,119 +38,226 @@ export async function testSupabaseConnection() {
   }
 }
 
-// Função para criar tabelas diretamente usando SQL
+// Importa os tipos e valores padrão para inicialização
+import { defaultActivityTypes, weekdays } from '@shared/schema';
+// Não precisa mais importar o initializeDatabase
+
+// Função para criar uma tabela diretamente no Supabase
+async function createTable(tableName: string, fields: { [key: string]: any }) {
+  try {
+    console.log(`Criando tabela ${tableName} no Supabase...`);
+    
+    // Tentamos primeiro verificar se a tabela existe
+    const { error } = await supabase
+      .from(tableName)
+      .select('count(*)', { count: 'exact', head: true });
+    
+    if (error) {
+      // Se houve erro, assumimos que a tabela não existe
+      // Tentamos criar uma entrada com os campos mínimos para triggerar a criação automática
+      const tempRecord = { ...fields };
+      
+      // Para cada campo, atribuímos um valor padrão baseado no tipo/nome
+      Object.keys(tempRecord).forEach(key => {
+        if (key === 'id') {
+          // Não inserimos ID, será gerado automaticamente 
+          delete tempRecord[key];
+        } else if (key.toLowerCase().includes('name') || key.includes('code') || key.includes('color')) {
+          tempRecord[key] = `temp_${key}_${Date.now()}`;
+        } else if (key.includes('active') || key.includes('isBaseSlot')) {
+          tempRecord[key] = 1;
+        } else if (key.includes('interval')) {
+          tempRecord[key] = 30;
+        } else if (key.includes('Time')) {
+          tempRecord[key] = '00:00';
+        } else if (key.includes('weekday')) {
+          tempRecord[key] = 'segunda';
+        } else if (key.includes('professionalId')) {
+          tempRecord[key] = 1;
+        } else {
+          tempRecord[key] = '';
+        }
+      });
+      
+      console.log(`Tentando criar tabela ${tableName} inserindo registro temporário:`, tempRecord);
+      
+      try {
+        // Tentativa de inserção para criar a tabela
+        const { error: insertError } = await supabase
+          .from(tableName)
+          .insert(tempRecord);
+        
+        if (insertError) {
+          console.error(`Erro ao criar tabela ${tableName}:`, insertError);
+          return false;
+        }
+        
+        // Depois de criar, limpar registros temporários
+        try {
+          // Identificar qual campo usar para localizar o registro temporário
+          let identifyField = '';
+          if (tempRecord.code) identifyField = 'code';
+          else if (tempRecord.name) identifyField = 'name';
+          else if (tempRecord.startTime) identifyField = 'startTime';
+          
+          // Se tiver um campo de identificação, tenta remover o registro temporário
+          if (identifyField) {
+            const identifyValue = tempRecord[identifyField];
+            await supabase.from(tableName).delete().eq(identifyField, identifyValue);
+            console.log(`Registro temporário removido de ${tableName}`);
+          }
+        } catch (cleanupError) {
+          console.error(`Erro ao limpar registro temporário de ${tableName}:`, cleanupError);
+          // Continua mesmo com erro na limpeza
+        }
+        
+        console.log(`Tabela ${tableName} criada com sucesso`);
+        return true;
+      } catch (createError) {
+        console.error(`Erro ao criar tabela ${tableName}:`, createError);
+        return false;
+      }
+    } else {
+      console.log(`Tabela ${tableName} já existe`);
+      return true;
+    }
+  } catch (error) {
+    console.error(`Erro ao verificar/criar tabela ${tableName}:`, error);
+    return false;
+  }
+}
+
+// Função para criar tabelas diretamente no Supabase
 async function createTablesDirectly() {
   try {
-    console.log("Criando tabelas diretamente via SQL...");
+    console.log("Criando tabelas diretamente no Supabase...");
     
-    const createQueries = [
-      // Users
-      `
-      CREATE TABLE IF NOT EXISTS users (
-        id SERIAL PRIMARY KEY,
-        username TEXT NOT NULL UNIQUE,
-        password TEXT NOT NULL
-      );
-      `,
-      // Activity Types
-      `
-      CREATE TABLE IF NOT EXISTS activity_types (
-        id SERIAL PRIMARY KEY,
-        code TEXT NOT NULL UNIQUE,
-        name TEXT NOT NULL,
-        color TEXT NOT NULL
-      );
-      `,
-      // Professionals
-      `
-      CREATE TABLE IF NOT EXISTS professionals (
-        id SERIAL PRIMARY KEY,
-        name TEXT NOT NULL,
-        initials TEXT NOT NULL,
-        active INTEGER NOT NULL DEFAULT 1
-      );
-      `,
-      // Time Slots
-      `
-      CREATE TABLE IF NOT EXISTS time_slots (
-        id SERIAL PRIMARY KEY,
-        "startTime" TEXT NOT NULL,
-        "endTime" TEXT NOT NULL,
-        interval INTEGER NOT NULL DEFAULT 30,
-        "isBaseSlot" INTEGER NOT NULL DEFAULT 1
-      );
-      `,
-      // Schedules
-      `
-      CREATE TABLE IF NOT EXISTS schedules (
-        id SERIAL PRIMARY KEY,
-        "professionalId" INTEGER NOT NULL,
-        weekday TEXT NOT NULL,
-        "startTime" TEXT NOT NULL,
-        "endTime" TEXT NOT NULL,
-        "activityCode" TEXT NOT NULL,
-        location TEXT,
-        notes TEXT,
-        "updatedAt" TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-      );
-      `
-    ];
+    // Definir as tabelas e seus campos
+    const tables = {
+      users: {
+        id: 'serial',
+        username: 'text',
+        password: 'text'
+      },
+      activity_types: {
+        id: 'serial',
+        code: 'text',
+        name: 'text',
+        color: 'text'
+      },
+      professionals: {
+        id: 'serial',
+        name: 'text',
+        initials: 'text',
+        active: 'integer'
+      },
+      time_slots: {
+        id: 'serial',
+        startTime: 'text',
+        endTime: 'text',
+        interval: 'integer',
+        isBaseSlot: 'integer'
+      },
+      schedules: {
+        id: 'serial',
+        professionalId: 'integer',
+        weekday: 'text',
+        startTime: 'text',
+        endTime: 'text',
+        activityCode: 'text',
+        location: 'text',
+        notes: 'text'
+      }
+    };
     
-    for (const query of createQueries) {
+    // Criar cada tabela
+    for (const [tableName, fields] of Object.entries(tables)) {
+      await createTable(tableName, fields);
+    }
+    
+    console.log("Tentativa de criação de tabelas no Supabase concluída");
+    return true;
+  } catch (error) {
+    console.error("Erro ao criar tabelas no Supabase:", error);
+    return false;
+  }
+}
+
+// Função para inserir dados padrão nas tabelas
+async function insertDefaultData() {
+  try {
+    console.log("Inserindo dados padrão nas tabelas...");
+    
+    // Insere tipos de atividade padrão
+    for (const actType of defaultActivityTypes) {
       try {
-        await pool.query(query);
+        const { error } = await supabase
+          .from('activity_types')
+          .upsert({ 
+            code: actType.code,
+            name: actType.name,
+            color: actType.color
+          }, { 
+            onConflict: 'code',
+            ignoreDuplicates: false
+          });
+          
+        if (error) {
+          console.error(`Erro ao inserir tipo de atividade ${actType.code}:`, error);
+        }
       } catch (error) {
-        console.error("Erro ao executar query:", error);
-        // Continua para a próxima query mesmo com erro
+        console.error(`Erro ao inserir tipo de atividade ${actType.code}:`, error);
       }
     }
     
-    console.log("Tabelas criadas com sucesso via SQL direto");
-    return true;
-  } catch (error) {
-    console.error("Erro ao criar tabelas diretamente:", error);
-    return false;
-  }
-}
-
-// Função para criar funções SQL usando pool direto
-async function createHelperFunctions() {
-  try {
-    console.log("Criando funções auxiliares SQL diretamente via pool...");
+    // Insere slots de tempo padrão, de 30 em 30 minutos
+    const slots = [
+      { startTime: '08:00', endTime: '08:30', interval: 30, isBaseSlot: 1 },
+      { startTime: '08:30', endTime: '09:00', interval: 30, isBaseSlot: 1 },
+      { startTime: '09:00', endTime: '09:30', interval: 30, isBaseSlot: 1 },
+      { startTime: '09:30', endTime: '10:00', interval: 30, isBaseSlot: 1 },
+      { startTime: '10:00', endTime: '10:30', interval: 30, isBaseSlot: 1 },
+      { startTime: '10:30', endTime: '11:00', interval: 30, isBaseSlot: 1 },
+      { startTime: '11:00', endTime: '11:30', interval: 30, isBaseSlot: 1 },
+      { startTime: '11:30', endTime: '12:00', interval: 30, isBaseSlot: 1 },
+      { startTime: '13:00', endTime: '13:30', interval: 30, isBaseSlot: 1 },
+      { startTime: '13:30', endTime: '14:00', interval: 30, isBaseSlot: 1 },
+      { startTime: '14:00', endTime: '14:30', interval: 30, isBaseSlot: 1 },
+      { startTime: '14:30', endTime: '15:00', interval: 30, isBaseSlot: 1 },
+      { startTime: '15:00', endTime: '15:30', interval: 30, isBaseSlot: 1 },
+      { startTime: '15:30', endTime: '16:00', interval: 30, isBaseSlot: 1 },
+      { startTime: '16:00', endTime: '16:30', interval: 30, isBaseSlot: 1 },
+      { startTime: '16:30', endTime: '17:00', interval: 30, isBaseSlot: 1 },
+      { startTime: '17:00', endTime: '17:30', interval: 30, isBaseSlot: 1 },
+      { startTime: '17:30', endTime: '18:00', interval: 30, isBaseSlot: 1 },
+      { startTime: '18:00', endTime: '18:30', interval: 30, isBaseSlot: 1 },
+      { startTime: '18:30', endTime: '19:00', interval: 30, isBaseSlot: 1 }
+    ];
     
-    // Usar o pool diretamente para criar a função check_table_exists
-    try {
-      await pool.query(`
-        CREATE OR REPLACE FUNCTION check_table_exists(table_name text)
-        RETURNS boolean AS $$
-        BEGIN
-          RETURN EXISTS (
-            SELECT 1 
-            FROM information_schema.tables 
-            WHERE table_schema = 'public' 
-            AND table_name = $1
-          );
-        END;
-        $$ LANGUAGE plpgsql SECURITY DEFINER;
-        
-        GRANT EXECUTE ON FUNCTION check_table_exists(text) TO public;
-      `);
-      console.log("Função check_table_exists criada via pool direto");
-    } catch (poolError) {
-      console.error("Erro ao criar função via pool:", poolError);
-      // Continua mesmo com erro
+    for (const slot of slots) {
+      try {
+        const { error } = await supabase
+          .from('time_slots')
+          .upsert(slot, { 
+            onConflict: 'startTime,endTime',
+            ignoreDuplicates: true 
+          });
+          
+        if (error) {
+          console.error(`Erro ao inserir slot de tempo ${slot.startTime}-${slot.endTime}:`, error);
+        }
+      } catch (error) {
+        console.error(`Erro ao inserir slot de tempo ${slot.startTime}-${slot.endTime}:`, error);
+      }
     }
     
+    console.log("Dados padrão inseridos com sucesso");
     return true;
   } catch (error) {
-    console.error("Erro ao criar funções auxiliares:", error);
+    console.error("Erro ao inserir dados padrão:", error);
     return false;
   }
 }
-
-// Inicie a inicialização do banco de dados
-import { initializeDatabase } from './initDatabase';
-import { pool } from './db';
 
 // Esta função será chamada quando o módulo for importado
 export async function initSupabase() {
@@ -158,44 +266,82 @@ export async function initSupabase() {
   
   if (connected) {
     try {
-      // Criar funções auxiliares e tabelas diretamente
-      console.log("Criando funções auxiliares SQL...");
-      await createHelperFunctions();
+      // Verifica tabelas existentes no Supabase
+      console.log("Verificando se as tabelas existem no Supabase...");
       
-      // Função para verificar se as tabelas existem
-      console.log("Verificando tabelas existentes...");
-      
-      // Criar tabelas diretamente via SQL
-      await createTablesDirectly();
-      
-      // Verificar se existe a tabela activity_types diretamente via pool
-      try {
-        const tableCheck = await pool.query(`
-          SELECT EXISTS (
-            SELECT 1 
-            FROM information_schema.tables 
-            WHERE table_schema = 'public' 
-            AND table_name = 'activity_types'
-          );
-        `);
+      // Verifica a tabela activity_types no Supabase
+      const { data: activityTypesData, error: activityTypesError } = await supabase
+        .from('activity_types')
+        .select('id')
+        .limit(1);
         
-        const tableExists = tableCheck.rows[0].exists;
-        console.log("Verificação de tabela activity_types via SQL direto:", tableExists ? "Existe" : "Não existe");
-      } catch (sqlError) {
-        console.error("Erro ao verificar tabela activity_types via SQL direto:", sqlError);
+      if (activityTypesError) {
+        console.log("Tabela 'activity_types' não encontrada, criando tabelas...");
+        // Criar tabelas diretamente no Supabase
+        await createTablesDirectly();
+        
+        // Inserir dados padrão
+        console.log("Inserindo dados padrão nas tabelas...");
+        await insertDefaultData();
+      } else {
+        console.log("Tabelas já existem no Supabase");
+        
+        // Verifica se há dados nos tipos de atividade
+        if (!activityTypesData || activityTypesData.length === 0) {
+          console.log("Tabela activity_types está vazia, inserindo dados padrão...");
+          await insertDefaultData();
+        } else {
+          console.log(`Tabela activity_types já contém dados`);
+        }
       }
       
-      console.log("Iniciando a criação/verificação das tabelas...");
-      const result = await initializeDatabase();
+      // Verifica time_slots
+      const { data: timeSlotsData, error: timeSlotsError } = await supabase
+        .from('time_slots')
+        .select('id')
+        .limit(1);
+        
+      if (timeSlotsError || !timeSlotsData || timeSlotsData.length === 0) {
+        console.log("Inserindo slots de tempo padrão...");
+        // Insere slots de tempo padrão
+        const slots = [
+          { startTime: '08:00', endTime: '08:30', interval: 30, isBaseSlot: 1 },
+          { startTime: '08:30', endTime: '09:00', interval: 30, isBaseSlot: 1 },
+          { startTime: '09:00', endTime: '09:30', interval: 30, isBaseSlot: 1 },
+          { startTime: '09:30', endTime: '10:00', interval: 30, isBaseSlot: 1 },
+          { startTime: '10:00', endTime: '10:30', interval: 30, isBaseSlot: 1 },
+          { startTime: '10:30', endTime: '11:00', interval: 30, isBaseSlot: 1 },
+          { startTime: '11:00', endTime: '11:30', interval: 30, isBaseSlot: 1 },
+          { startTime: '11:30', endTime: '12:00', interval: 30, isBaseSlot: 1 },
+          { startTime: '13:00', endTime: '13:30', interval: 30, isBaseSlot: 1 },
+          { startTime: '13:30', endTime: '14:00', interval: 30, isBaseSlot: 1 },
+          { startTime: '14:00', endTime: '14:30', interval: 30, isBaseSlot: 1 },
+          { startTime: '14:30', endTime: '15:00', interval: 30, isBaseSlot: 1 },
+          { startTime: '15:00', endTime: '15:30', interval: 30, isBaseSlot: 1 },
+          { startTime: '15:30', endTime: '16:00', interval: 30, isBaseSlot: 1 },
+          { startTime: '16:00', endTime: '16:30', interval: 30, isBaseSlot: 1 },
+          { startTime: '16:30', endTime: '17:00', interval: 30, isBaseSlot: 1 },
+          { startTime: '17:00', endTime: '17:30', interval: 30, isBaseSlot: 1 },
+          { startTime: '17:30', endTime: '18:00', interval: 30, isBaseSlot: 1 },
+          { startTime: '18:00', endTime: '18:30', interval: 30, isBaseSlot: 1 },
+          { startTime: '18:30', endTime: '19:00', interval: 30, isBaseSlot: 1 }
+        ];
+        
+        for (const slot of slots) {
+          await supabase.from('time_slots').upsert(slot, { 
+            onConflict: 'startTime,endTime' 
+          });
+        }
+      }
       
-      console.log("Configuração do banco de dados concluída com sucesso");
-      return result;
+      console.log("Configuração do banco de dados Supabase concluída com sucesso");
+      return true;
     } catch (err) {
-      console.error("Falha na inicialização do banco de dados:", err);
+      console.error("Falha na inicialização do banco de dados Supabase:", err);
       return false;
     }
   } else {
-    console.error("Não foi possível inicializar o banco de dados porque a conexão falhou");
+    console.error("Não foi possível inicializar o banco de dados porque a conexão com o Supabase falhou");
     return false;
   }
 }

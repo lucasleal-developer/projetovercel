@@ -637,21 +637,12 @@ import { SupabaseStorage } from './supabaseStorage';
 // Cria e exporta a instância de armazenamento
 let storage: IStorage;
 
-// Prioriza o uso do PostgreSQL direto se DATABASE_URL for fornecido
-if (process.env.DATABASE_URL) {
-  console.log("Using PostgreSQL storage");
-  storage = new PostgresStorage(process.env.DATABASE_URL);
-  (storage as PostgresStorage).connect().catch(err => {
-    console.error("Failed to connect to PostgreSQL, falling back to in-memory storage:", err);
-    storage = new MemStorage();
-  });
-} 
-// Se não tiver PostgreSQL mas tiver Supabase configurado
-else if (process.env.SUPABASE_URL && process.env.SUPABASE_KEY) {
-  console.log("Using Supabase storage");
+// Prioriza o uso do Supabase se estiver configurado
+if (process.env.SUPABASE_URL && process.env.SUPABASE_KEY) {
+  console.log("Using Supabase storage exclusively");
   storage = new SupabaseStorage();
 }
-// Caso contrário, usa o storage em memória
+// Caso não tenha Supabase configurado, usa o storage em memória
 else {
   console.log("Using in-memory storage");
   storage = new MemStorage();

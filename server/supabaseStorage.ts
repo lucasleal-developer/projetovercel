@@ -1,6 +1,5 @@
 import { supabase } from './supabase';
 import { IStorage } from './storage';
-import { pool } from './db';
 import {
   User, InsertUser,
   Professional, InsertProfessional,
@@ -21,79 +20,151 @@ export class SupabaseStorage implements IStorage {
 
   async setupDatabase() {
     try {
-      // Verifica se já existem tipos de atividades
-      const { data: existingActivityTypes, error: activityError } = await supabase
-        .from('activity_types')
-        .select('*');
-      
-      if (activityError) {
-        console.error("Erro ao verificar tipos de atividades:", activityError);
-      } else if (!existingActivityTypes || existingActivityTypes.length === 0) {
-        console.log("Inicializando tipos de atividades padrão no Supabase");
-        for (const activityType of defaultActivityTypes) {
-          await this.createActivityType(activityType);
-        }
-      }
-
-      // Verifica se já existem slots de tempo
-      const { data: existingTimeSlots, error: timeSlotsError } = await supabase
-        .from('time_slots')
-        .select('*');
-      
-      if (timeSlotsError) {
-        console.error("Erro ao verificar slots de tempo:", timeSlotsError);
-      } else if (!existingTimeSlots || existingTimeSlots.length === 0) {
-        console.log("Inicializando slots de tempo padrão no Supabase");
-        const defaultTimeSlots: InsertTimeSlot[] = [
-          { startTime: "08:00", endTime: "08:30", interval: 30, isBaseSlot: 1 },
-          { startTime: "08:30", endTime: "09:00", interval: 30, isBaseSlot: 1 },
-          { startTime: "09:00", endTime: "09:30", interval: 30, isBaseSlot: 1 },
-          { startTime: "09:30", endTime: "10:00", interval: 30, isBaseSlot: 1 },
-          { startTime: "10:00", endTime: "10:30", interval: 30, isBaseSlot: 1 },
-          { startTime: "10:30", endTime: "11:00", interval: 30, isBaseSlot: 1 },
-          { startTime: "11:00", endTime: "11:30", interval: 30, isBaseSlot: 1 },
-          { startTime: "11:30", endTime: "12:00", interval: 30, isBaseSlot: 1 },
-          { startTime: "13:00", endTime: "13:30", interval: 30, isBaseSlot: 1 },
-          { startTime: "13:30", endTime: "14:00", interval: 30, isBaseSlot: 1 },
-          { startTime: "14:00", endTime: "14:30", interval: 30, isBaseSlot: 1 },
-          { startTime: "14:30", endTime: "15:00", interval: 30, isBaseSlot: 1 },
-          { startTime: "15:00", endTime: "15:30", interval: 30, isBaseSlot: 1 },
-          { startTime: "15:30", endTime: "16:00", interval: 30, isBaseSlot: 1 },
-          { startTime: "16:00", endTime: "16:30", interval: 30, isBaseSlot: 1 },
-          { startTime: "16:30", endTime: "17:00", interval: 30, isBaseSlot: 1 }
-        ];
+      // Vamos apenas adicionar os dados padrão se as tabelas existirem
+      try {
+        // Verifica se já existem tipos de atividades
+        const { data: existingActivityTypes, error: activityError } = await supabase
+          .from('activity_types')
+          .select('count(*)', { count: 'exact', head: true });
         
-        for (const timeSlot of defaultTimeSlots) {
-          await this.createTimeSlot(timeSlot);
+        if (!activityError) {
+          // Se não houver erro, a tabela existe
+          console.log("Tabela activity_types existe no Supabase");
+          
+          // Verifica quantos registros existem na tabela activity_types
+          const { count } = existingActivityTypes || { count: 0 };
+          
+          // Se não houver registros, insere os tipos de atividade padrão
+          if (count === 0) {
+            console.log("Inicializando tipos de atividades padrão no Supabase");
+            await this.initDefaultActivityTypes();
+          } else {
+            console.log(`Tabela activity_types já contém ${count} registros`);
+          }
         }
+      } catch (err) {
+        console.error("Erro ao verificar/adicionar tipos de atividades:", err);
       }
-
-      // Verifica se já existem profissionais
-      const { data: existingProfessionals, error: professionalsError } = await supabase
-        .from('professionals')
-        .select('*');
       
-      if (professionalsError) {
-        console.error("Erro ao verificar profissionais:", professionalsError);
-      } else if (!existingProfessionals || existingProfessionals.length === 0) {
-        console.log("Inicializando profissionais de exemplo no Supabase");
-        const defaultProfessionals: InsertProfessional[] = [
-          { name: "Prof. Paulo", initials: "PP", active: 1 },
-          { name: "Profa. Ana Maria", initials: "AM", active: 1 },
-          { name: "Prof. Carlos", initials: "CL", active: 1 },
-          { name: "Prof. João", initials: "JM", active: 1 },
-          { name: "Profa. Maria", initials: "MM", active: 1 }
-        ];
+      try {
+        // Verifica se já existem slots de tempo
+        const { data: existingTimeSlots, error: timeSlotsError } = await supabase
+          .from('time_slots')
+          .select('count(*)', { count: 'exact', head: true });
         
-        for (const professional of defaultProfessionals) {
-          await this.createProfessional(professional);
+        if (!timeSlotsError) {
+          console.log("Tabela time_slots existe no Supabase");
+          
+          // Verifica quantos registros existem na tabela time_slots
+          const { count } = existingTimeSlots || { count: 0 };
+          
+          // Se não houver registros, insere os slots de tempo padrão
+          if (count === 0) {
+            console.log("Inicializando slots de tempo padrão no Supabase");
+            await this.initDefaultTimeSlots();
+          } else {
+            console.log(`Tabela time_slots já contém ${count} registros`);
+          }
         }
+      } catch (err) {
+        console.error("Erro ao verificar/adicionar slots de tempo:", err);
+      }
+      
+      try {
+        // Verifica se já existem profissionais
+        const { data: existingProfessionals, error: professionalsError } = await supabase
+          .from('professionals')
+          .select('count(*)', { count: 'exact', head: true });
+        
+        if (!professionalsError) {
+          console.log("Tabela professionals existe no Supabase");
+          
+          // Verifica quantos registros existem na tabela professionals
+          const { count } = existingProfessionals || { count: 0 };
+          
+          // Se não houver registros, insere os profissionais padrão
+          if (count === 0) {
+            console.log("Inicializando profissionais de exemplo no Supabase");
+            await this.initDefaultProfessionals();
+          } else {
+            console.log(`Tabela professionals já contém ${count} registros`);
+          }
+        }
+      } catch (err) {
+        console.error("Erro ao verificar/adicionar profissionais:", err);
       }
 
       console.log("Configuração do banco de dados Supabase concluída com sucesso");
     } catch (err) {
       console.error("Erro durante a configuração do banco de dados Supabase:", err);
       throw err;
+    }
+  }
+  
+  // Métodos auxiliares para inicialização de dados
+  async initDefaultActivityTypes() {
+    const defaultTypes = defaultActivityTypes;
+    
+    for (const actType of defaultTypes) {
+      try {
+        await this.createActivityType(actType);
+        console.log(`Tipo de atividade ${actType.code} criado com sucesso`);
+      } catch (error) {
+        console.error(`Erro ao criar tipo de atividade ${actType.code}:`, error);
+      }
+    }
+  }
+  
+  async initDefaultTimeSlots() {
+    const defaultSlots: InsertTimeSlot[] = [
+      { startTime: "08:00", endTime: "08:30", interval: 30, isBaseSlot: 1 },
+      { startTime: "08:30", endTime: "09:00", interval: 30, isBaseSlot: 1 },
+      { startTime: "09:00", endTime: "09:30", interval: 30, isBaseSlot: 1 },
+      { startTime: "09:30", endTime: "10:00", interval: 30, isBaseSlot: 1 },
+      { startTime: "10:00", endTime: "10:30", interval: 30, isBaseSlot: 1 },
+      { startTime: "10:30", endTime: "11:00", interval: 30, isBaseSlot: 1 },
+      { startTime: "11:00", endTime: "11:30", interval: 30, isBaseSlot: 1 },
+      { startTime: "11:30", endTime: "12:00", interval: 30, isBaseSlot: 1 },
+      { startTime: "13:00", endTime: "13:30", interval: 30, isBaseSlot: 1 },
+      { startTime: "13:30", endTime: "14:00", interval: 30, isBaseSlot: 1 },
+      { startTime: "14:00", endTime: "14:30", interval: 30, isBaseSlot: 1 },
+      { startTime: "14:30", endTime: "15:00", interval: 30, isBaseSlot: 1 },
+      { startTime: "15:00", endTime: "15:30", interval: 30, isBaseSlot: 1 },
+      { startTime: "15:30", endTime: "16:00", interval: 30, isBaseSlot: 1 },
+      { startTime: "16:00", endTime: "16:30", interval: 30, isBaseSlot: 1 },
+      { startTime: "16:30", endTime: "17:00", interval: 30, isBaseSlot: 1 },
+      { startTime: "17:00", endTime: "17:30", interval: 30, isBaseSlot: 1 },
+      { startTime: "17:30", endTime: "18:00", interval: 30, isBaseSlot: 1 },
+      { startTime: "18:00", endTime: "18:30", interval: 30, isBaseSlot: 1 },
+      { startTime: "18:30", endTime: "19:00", interval: 30, isBaseSlot: 1 }
+    ];
+    
+    for (const slot of defaultSlots) {
+      try {
+        await this.createTimeSlot(slot);
+        console.log(`Slot de tempo ${slot.startTime}-${slot.endTime} criado com sucesso`);
+      } catch (error) {
+        console.error(`Erro ao criar slot de tempo ${slot.startTime}-${slot.endTime}:`, error);
+      }
+    }
+  }
+  
+  async initDefaultProfessionals() {
+    const defaultProfessionals: InsertProfessional[] = [
+      { name: "Prof. Paulo", initials: "PP", active: 1 },
+      { name: "Profa. Ana Maria", initials: "AM", active: 1 },
+      { name: "Prof. Carlos", initials: "CL", active: 1 },
+      { name: "Prof. João", initials: "JM", active: 1 },
+      { name: "Profa. Maria", initials: "MM", active: 1 }
+    ];
+    
+    for (const professional of defaultProfessionals) {
+      try {
+        await this.createProfessional(professional);
+        console.log(`Profissional ${professional.name} criado com sucesso`);
+      } catch (error) {
+        console.error(`Erro ao criar profissional ${professional.name}:`, error);
+      }
     }
   }
   // Usuários
@@ -198,61 +269,17 @@ export class SupabaseStorage implements IStorage {
     try {
       console.log("SupabaseStorage: Buscando todos os tipos de atividades");
       
-      // Usar SQL direto em vez do Supabase client
-      try {
-        
-        // Verificar se a tabela existe
-        const tableExists = await pool.query(`
-          SELECT EXISTS (
-            SELECT 1 
-            FROM information_schema.tables 
-            WHERE table_schema = 'public' 
-            AND table_name = 'activity_types'
-          );
-        `);
-        
-        if (!tableExists.rows[0].exists) {
-          console.warn("Tabela 'activity_types' não existe. Tentando criar via SQL direto.");
-          // Criar a tabela
-          await pool.query(`
-            CREATE TABLE IF NOT EXISTS activity_types (
-              id SERIAL PRIMARY KEY,
-              code TEXT NOT NULL UNIQUE,
-              name TEXT NOT NULL,
-              color TEXT NOT NULL
-            );
-          `);
-          console.log("Tabela activity_types criada com sucesso");
-          
-          // Se a tabela foi criada agora, retorna lista vazia
-          return [];
-        }
-        
-        // Buscar dados diretamente via SQL
-        const result = await pool.query('SELECT * FROM activity_types ORDER BY name');
-        console.log("Tipos de atividades encontrados via SQL direto:", result.rows.length);
-        return result.rows as ActivityType[];
-      } catch (sqlError) {
-        console.error("Erro ao buscar tipos de atividades via SQL direto:", sqlError);
-        
-        // Tentar usar Supabase como fallback
-        try {
-          const { data, error } = await supabase
-            .from('activity_types')
-            .select('*')
-            .order('name');
-          
-          if (error) {
-            console.error("Erro do Supabase ao buscar tipos de atividades:", error);
-            return [];
-          }
-          
-          return data as ActivityType[] || [];
-        } catch (error) {
-          console.error("Erro do Supabase:", error);
-          return [];
-        }
+      const { data, error } = await supabase
+        .from('activity_types')
+        .select('*')
+        .order('name');
+      
+      if (error) {
+        console.error("Erro do Supabase ao buscar tipos de atividades:", error);
+        return [];
       }
+      
+      return data as ActivityType[] || [];
     } catch (error) {
       console.error("Erro não tratado ao buscar tipos de atividades:", error);
       return []; // Retorna array vazio em caso de erro para não quebrar a UI
@@ -283,42 +310,21 @@ export class SupabaseStorage implements IStorage {
 
   async createActivityType(activityType: InsertActivityType): Promise<ActivityType> {
     try {
-      // Tentar primeiro via SQL direto
+      const { data, error } = await supabase
+        .from('activity_types')
+        .insert(activityType)
+        .select()
+        .single();
       
-      const { rows } = await pool.query(
-        `INSERT INTO activity_types (code, name, color) 
-         VALUES ($1, $2, $3) 
-         RETURNING *`,
-        [activityType.code, activityType.name, activityType.color]
-      );
-      
-      if (rows && rows.length > 0) {
-        console.log("Tipo de atividade criado via SQL direto:", rows[0]);
-        return rows[0] as ActivityType;
+      if (error || !data) {
+        throw new Error(`Erro ao criar tipo de atividade: ${error?.message || 'Desconhecido'}`);
       }
       
-      throw new Error("Falha ao inserir dados via SQL direto");
-    } catch (sqlError) {
-      console.error("Erro ao criar tipo de atividade via SQL direto:", sqlError);
-      
-      // Tentar via Supabase como fallback
-      try {
-        const { data, error } = await supabase
-          .from('activity_types')
-          .insert(activityType)
-          .select()
-          .single();
-        
-        if (error || !data) {
-          throw new Error(`Erro ao criar tipo de atividade via Supabase: ${error?.message || 'Desconhecido'}`);
-        }
-        
-        return data as ActivityType;
-      } catch (error) {
-        const supabaseError = error as Error;
-        console.error("Erro do Supabase:", supabaseError);
-        throw new Error(`Erro ao criar tipo de atividade: ${supabaseError.message}`);
-      }
+      return data as ActivityType;
+    } catch (error) {
+      const supabaseError = error as Error;
+      console.error("Erro ao criar tipo de atividade:", supabaseError);
+      throw new Error(`Erro ao criar tipo de atividade: ${supabaseError.message}`);
     }
   }
 
