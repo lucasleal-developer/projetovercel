@@ -65,10 +65,10 @@ async function createTablesIfNotExist() {
       await pool.query(`
         CREATE TABLE IF NOT EXISTS time_slots (
           id SERIAL PRIMARY KEY,
-          "startTime" TEXT NOT NULL,
-          "endTime" TEXT NOT NULL,
+          start_time TEXT NOT NULL,
+          end_time TEXT NOT NULL,
           interval INTEGER NOT NULL DEFAULT 30,
-          "isBaseSlot" INTEGER NOT NULL DEFAULT 1
+          is_base_slot INTEGER NOT NULL DEFAULT 1
         )
       `);
       log("Tabela time_slots verificada/criada");
@@ -77,14 +77,14 @@ async function createTablesIfNotExist() {
       await pool.query(`
         CREATE TABLE IF NOT EXISTS schedules (
           id SERIAL PRIMARY KEY,
-          "professionalId" INTEGER NOT NULL,
+          professional_id INTEGER NOT NULL,
           weekday TEXT NOT NULL,
-          "startTime" TEXT NOT NULL,
-          "endTime" TEXT NOT NULL,
-          "activityCode" TEXT NOT NULL,
+          start_time TEXT NOT NULL,
+          end_time TEXT NOT NULL,
+          activity_code TEXT NOT NULL,
           location TEXT,
           notes TEXT,
-          "updatedAt" TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+          updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
         )
       `);
       log("Tabela schedules verificada/criada");
@@ -159,9 +159,9 @@ async function populateDefaultData() {
       for (const slot of defaultTimeSlots) {
         try {
           await pool.query(
-            `INSERT INTO time_slots ("startTime", "endTime", interval, "isBaseSlot") 
+            `INSERT INTO time_slots (start_time, end_time, interval, is_base_slot) 
              VALUES ($1, $2, $3, $4)
-             ON CONFLICT ("startTime", "endTime") DO NOTHING`,
+             ON CONFLICT (start_time, end_time) DO NOTHING`,
             [slot.startTime, slot.endTime, slot.interval, slot.isBaseSlot]
           );
           log(`Slot de tempo ${slot.startTime}-${slot.endTime} inserido com sucesso`);

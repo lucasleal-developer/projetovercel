@@ -239,7 +239,7 @@ export class NeonStorage implements IStorage {
   async getAllTimeSlots(): Promise<TimeSlot[]> {
     try {
       const result = await pool.query(
-        'SELECT * FROM time_slots ORDER BY "startTime"'
+        'SELECT id, start_time as "startTime", end_time as "endTime", interval, is_base_slot as "isBaseSlot" FROM time_slots ORDER BY start_time'
       );
       
       return result.rows as TimeSlot[];
@@ -252,7 +252,7 @@ export class NeonStorage implements IStorage {
   async getBaseTimeSlots(): Promise<TimeSlot[]> {
     try {
       const result = await pool.query(
-        'SELECT * FROM time_slots WHERE "isBaseSlot" = 1 ORDER BY "startTime"'
+        'SELECT id, start_time as "startTime", end_time as "endTime", interval, is_base_slot as "isBaseSlot" FROM time_slots WHERE is_base_slot = 1 ORDER BY start_time'
       );
       
       return result.rows as TimeSlot[];
@@ -265,7 +265,7 @@ export class NeonStorage implements IStorage {
   async getTimeSlot(id: number): Promise<TimeSlot | undefined> {
     try {
       const result = await pool.query(
-        'SELECT * FROM time_slots WHERE id = $1',
+        'SELECT id, start_time as "startTime", end_time as "endTime", interval, is_base_slot as "isBaseSlot" FROM time_slots WHERE id = $1',
         [id]
       );
       
@@ -280,7 +280,7 @@ export class NeonStorage implements IStorage {
   async createTimeSlot(timeSlot: InsertTimeSlot): Promise<TimeSlot> {
     try {
       const result = await pool.query(
-        'INSERT INTO time_slots ("startTime", "endTime", interval, "isBaseSlot") VALUES ($1, $2, $3, $4) RETURNING *',
+        'INSERT INTO time_slots (start_time, end_time, interval, is_base_slot) VALUES ($1, $2, $3, $4) RETURNING id, start_time as "startTime", end_time as "endTime", interval, is_base_slot as "isBaseSlot"',
         [timeSlot.startTime, timeSlot.endTime, timeSlot.interval, timeSlot.isBaseSlot]
       );
       
@@ -309,7 +309,7 @@ export class NeonStorage implements IStorage {
   async getSchedulesByDay(weekday: WeekDay): Promise<Schedule[]> {
     try {
       const result = await pool.query(
-        'SELECT * FROM schedules WHERE weekday = $1',
+        'SELECT id, professional_id as "professionalId", weekday, start_time as "startTime", end_time as "endTime", activity_code as "activityCode", location, notes, updated_at as "updatedAt" FROM schedules WHERE weekday = $1',
         [weekday]
       );
       
@@ -323,7 +323,7 @@ export class NeonStorage implements IStorage {
   async getSchedulesByProfessional(professionalId: number): Promise<Schedule[]> {
     try {
       const result = await pool.query(
-        'SELECT * FROM schedules WHERE "professionalId" = $1',
+        'SELECT id, professional_id as "professionalId", weekday, start_time as "startTime", end_time as "endTime", activity_code as "activityCode", location, notes, updated_at as "updatedAt" FROM schedules WHERE professional_id = $1',
         [professionalId]
       );
       
@@ -337,7 +337,7 @@ export class NeonStorage implements IStorage {
   async getSchedule(id: number): Promise<Schedule | undefined> {
     try {
       const result = await pool.query(
-        'SELECT * FROM schedules WHERE id = $1',
+        'SELECT id, professional_id as "professionalId", weekday, start_time as "startTime", end_time as "endTime", activity_code as "activityCode", location, notes, updated_at as "updatedAt" FROM schedules WHERE id = $1',
         [id]
       );
       
@@ -352,7 +352,7 @@ export class NeonStorage implements IStorage {
   async createSchedule(schedule: InsertSchedule): Promise<Schedule> {
     try {
       const result = await pool.query(
-        'INSERT INTO schedules ("professionalId", weekday, "startTime", "endTime", "activityCode", location, notes) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *',
+        'INSERT INTO schedules (professional_id, weekday, start_time, end_time, activity_code, location, notes) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id, professional_id as "professionalId", weekday, start_time as "startTime", end_time as "endTime", activity_code as "activityCode", location, notes, updated_at as "updatedAt"',
         [
           schedule.professionalId,
           schedule.weekday,
@@ -379,7 +379,7 @@ export class NeonStorage implements IStorage {
       const updatedSchedule = { ...currentSchedule, ...data };
       
       const result = await pool.query(
-        'UPDATE schedules SET "professionalId" = $1, weekday = $2, "startTime" = $3, "endTime" = $4, "activityCode" = $5, location = $6, notes = $7, "updatedAt" = CURRENT_TIMESTAMP WHERE id = $8 RETURNING *',
+        'UPDATE schedules SET professional_id = $1, weekday = $2, start_time = $3, end_time = $4, activity_code = $5, location = $6, notes = $7, updated_at = CURRENT_TIMESTAMP WHERE id = $8 RETURNING id, professional_id as "professionalId", weekday, start_time as "startTime", end_time as "endTime", activity_code as "activityCode", location, notes, updated_at as "updatedAt"',
         [
           updatedSchedule.professionalId,
           updatedSchedule.weekday,
