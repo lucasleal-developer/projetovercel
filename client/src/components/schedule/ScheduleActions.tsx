@@ -190,11 +190,12 @@ export function ScheduleActions({
     onSearch(selectedProfessionals);
   }, [selectedProfessionals, onSearch]);
   
-  // Aplicar os filtros iniciais ao carregar
+  // Aplicar os filtros iniciais ao carregar (apenas uma vez)
   useEffect(() => {
-    // Chamada inicial para aplicar os filtros da URL
+    // Chamada inicial para aplicar os filtros da URL, apenas uma vez ao carregar
     onFilter(filterOptions);
-  }, [filterOptions, onFilter]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   
   // Função para copiar link compartilhável
   const copyShareableLink = () => {
