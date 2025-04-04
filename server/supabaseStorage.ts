@@ -6,10 +6,95 @@ import {
   ActivityType, InsertActivityType,
   TimeSlot, InsertTimeSlot,
   Schedule, InsertSchedule,
-  WeekDay
+  WeekDay,
+  defaultActivityTypes
 } from '@shared/schema';
 
 export class SupabaseStorage implements IStorage {
+  constructor() {
+    // Inicializa as tabelas básicas
+    this.setupDatabase().catch(err => {
+      console.error("Erro ao configurar banco de dados Supabase:", err);
+    });
+  }
+
+  async setupDatabase() {
+    try {
+      // Verifica se já existem tipos de atividades
+      const { data: existingActivityTypes, error: activityError } = await supabase
+        .from('activity_types')
+        .select('*');
+      
+      if (activityError) {
+        console.error("Erro ao verificar tipos de atividades:", activityError);
+      } else if (!existingActivityTypes || existingActivityTypes.length === 0) {
+        console.log("Inicializando tipos de atividades padrão no Supabase");
+        for (const activityType of defaultActivityTypes) {
+          await this.createActivityType(activityType);
+        }
+      }
+
+      // Verifica se já existem slots de tempo
+      const { data: existingTimeSlots, error: timeSlotsError } = await supabase
+        .from('time_slots')
+        .select('*');
+      
+      if (timeSlotsError) {
+        console.error("Erro ao verificar slots de tempo:", timeSlotsError);
+      } else if (!existingTimeSlots || existingTimeSlots.length === 0) {
+        console.log("Inicializando slots de tempo padrão no Supabase");
+        const defaultTimeSlots: InsertTimeSlot[] = [
+          { startTime: "08:00", endTime: "08:30", interval: 30, isBaseSlot: 1 },
+          { startTime: "08:30", endTime: "09:00", interval: 30, isBaseSlot: 1 },
+          { startTime: "09:00", endTime: "09:30", interval: 30, isBaseSlot: 1 },
+          { startTime: "09:30", endTime: "10:00", interval: 30, isBaseSlot: 1 },
+          { startTime: "10:00", endTime: "10:30", interval: 30, isBaseSlot: 1 },
+          { startTime: "10:30", endTime: "11:00", interval: 30, isBaseSlot: 1 },
+          { startTime: "11:00", endTime: "11:30", interval: 30, isBaseSlot: 1 },
+          { startTime: "11:30", endTime: "12:00", interval: 30, isBaseSlot: 1 },
+          { startTime: "13:00", endTime: "13:30", interval: 30, isBaseSlot: 1 },
+          { startTime: "13:30", endTime: "14:00", interval: 30, isBaseSlot: 1 },
+          { startTime: "14:00", endTime: "14:30", interval: 30, isBaseSlot: 1 },
+          { startTime: "14:30", endTime: "15:00", interval: 30, isBaseSlot: 1 },
+          { startTime: "15:00", endTime: "15:30", interval: 30, isBaseSlot: 1 },
+          { startTime: "15:30", endTime: "16:00", interval: 30, isBaseSlot: 1 },
+          { startTime: "16:00", endTime: "16:30", interval: 30, isBaseSlot: 1 },
+          { startTime: "16:30", endTime: "17:00", interval: 30, isBaseSlot: 1 }
+        ];
+        
+        for (const timeSlot of defaultTimeSlots) {
+          await this.createTimeSlot(timeSlot);
+        }
+      }
+
+      // Verifica se já existem profissionais
+      const { data: existingProfessionals, error: professionalsError } = await supabase
+        .from('professionals')
+        .select('*');
+      
+      if (professionalsError) {
+        console.error("Erro ao verificar profissionais:", professionalsError);
+      } else if (!existingProfessionals || existingProfessionals.length === 0) {
+        console.log("Inicializando profissionais de exemplo no Supabase");
+        const defaultProfessionals: InsertProfessional[] = [
+          { name: "Prof. Paulo", initials: "PP", active: 1 },
+          { name: "Profa. Ana Maria", initials: "AM", active: 1 },
+          { name: "Prof. Carlos", initials: "CL", active: 1 },
+          { name: "Prof. João", initials: "JM", active: 1 },
+          { name: "Profa. Maria", initials: "MM", active: 1 }
+        ];
+        
+        for (const professional of defaultProfessionals) {
+          await this.createProfessional(professional);
+        }
+      }
+
+      console.log("Configuração do banco de dados Supabase concluída com sucesso");
+    } catch (err) {
+      console.error("Erro durante a configuração do banco de dados Supabase:", err);
+      throw err;
+    }
+  }
   // Usuários
   async getUser(id: number): Promise<User | undefined> {
     const { data, error } = await supabase
