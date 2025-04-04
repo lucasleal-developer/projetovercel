@@ -1,6 +1,18 @@
 import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
+import { initSupabase } from "./supabase";
+
+// Inicializa o Supabase (criação de tabelas e dados iniciais)
+initSupabase().then(success => {
+  if (success) {
+    log("Inicialização do Supabase concluída com sucesso!");
+  } else {
+    log("Falha na inicialização do Supabase, verifique os logs para mais detalhes.");
+  }
+}).catch(err => {
+  log(`Erro na inicialização do Supabase: ${err}`);
+});
 
 const app = express();
 app.use(express.json());

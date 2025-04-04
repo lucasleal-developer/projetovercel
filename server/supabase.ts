@@ -11,12 +11,18 @@ if (!supabaseUrl || !supabaseKey) {
 }
 
 // Criando o cliente do Supabase
-export const supabase = createClient(supabaseUrl, supabaseKey);
+export const supabase = createClient(supabaseUrl, supabaseKey, {
+  auth: {
+    autoRefreshToken: true,
+    persistSession: true
+  }
+});
 
 // Função para verificar a conexão com o Supabase
 export async function testSupabaseConnection() {
   try {
-    const { data, error } = await supabase.from('users').select('*').limit(1);
+    // Apenas verifica se pode conectar ao Supabase sem depender de tabelas
+    const { error } = await supabase.auth.getSession();
     
     if (error) {
       console.error('Erro ao conectar com o Supabase:', error.message);
@@ -27,6 +33,29 @@ export async function testSupabaseConnection() {
     return true;
   } catch (err) {
     console.error('Exceção ao testar conexão com o Supabase:', err);
+    return false;
+  }
+}
+
+// Inicie a inicialização do banco de dados
+import { initializeDatabase } from './initDatabase';
+
+// Esta função será chamada quando o módulo for importado
+export async function initSupabase() {
+  console.log("Iniciando configuração do Supabase...");
+  const connected = await testSupabaseConnection();
+  
+  if (connected) {
+    try {
+      console.log("Iniciando a criação/verificação das tabelas...");
+      const result = await initializeDatabase();
+      return result;
+    } catch (err) {
+      console.error("Falha na inicialização do banco de dados:", err);
+      return false;
+    }
+  } else {
+    console.error("Não foi possível inicializar o banco de dados porque a conexão falhou");
     return false;
   }
 }

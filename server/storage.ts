@@ -123,7 +123,12 @@ export class MemStorage implements IStorage {
   
   async createProfessional(insertProfessional: InsertProfessional): Promise<Professional> {
     const id = this.professionalCurrentId++;
-    const professional: Professional = { ...insertProfessional, id };
+    const professional: Professional = { 
+      ...insertProfessional, 
+      id,
+      // Garante que active está definido com valor padrão 1 se não for fornecido
+      active: insertProfessional.active ?? 1
+    };
     this.professionals.set(id, professional);
     return professional;
   }
@@ -181,7 +186,14 @@ export class MemStorage implements IStorage {
   
   async createTimeSlot(insertTimeSlot: InsertTimeSlot): Promise<TimeSlot> {
     const id = this.timeSlotCurrentId++;
-    const timeSlot: TimeSlot = { ...insertTimeSlot, id };
+    const timeSlot: TimeSlot = { 
+      ...insertTimeSlot, 
+      id,
+      // Garante que interval está definido com valor padrão 30 se não for fornecido
+      interval: insertTimeSlot.interval ?? 30,
+      // Garante que isBaseSlot está definido com valor padrão 1 se não for fornecido
+      isBaseSlot: insertTimeSlot.isBaseSlot ?? 1
+    };
     this.timeSlots.set(id, timeSlot);
     return timeSlot;
   }
@@ -213,7 +225,11 @@ export class MemStorage implements IStorage {
     const schedule: Schedule = { 
       ...insertSchedule, 
       id, 
-      updatedAt: now
+      updatedAt: now,
+      // Garante que location está definido como null se não for fornecido
+      location: insertSchedule.location ?? null,
+      // Garante que notes está definido como null se não for fornecido
+      notes: insertSchedule.notes ?? null
     };
     this.schedules.set(id, schedule);
     return schedule;
