@@ -1,20 +1,21 @@
 import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
-import { initSupabase } from "./supabase";
+import { initializeNeonDb } from "./neondb";
 
-// Inicializa apenas o banco de dados Supabase
-initSupabase()
+log("Usando banco de dados Neon PostgreSQL");
+// Inicializa o banco de dados Neon
+initializeNeonDb()
   .then(success => {
     if (success) {
-      log("Inicialização do Supabase concluída com sucesso!");
+      log("Inicialização do banco de dados Neon concluída com sucesso!");
     } else {
-      log("Falha na inicialização do Supabase, verificando logs para detalhes.");
+      log("Falha na inicialização do banco de dados Neon, verificando logs para detalhes.");
     }
   })
   .catch(err => {
-    log(`Erro crítico na inicialização do Supabase: ${err}`);
-    log("Usando armazenamento em memória como fallback.");
+    log(`Erro crítico na inicialização do banco de dados Neon: ${err}`);
+    log("Verificar se a conexão STRING está correta e a estrutura da base de dados Neon está configurada.");
   });
 
 const app = express();

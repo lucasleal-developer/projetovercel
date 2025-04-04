@@ -631,20 +631,20 @@ export class PostgresStorage implements IStorage {
   }
 }
 
-// Importa o storage de Supabase
-import { SupabaseStorage } from './supabaseStorage';
+// Importa o storage do Neon PostgreSQL
+import { NeonStorage } from './neonStorage';
 
 // Cria e exporta a instância de armazenamento
 let storage: IStorage;
 
-// Prioriza o uso do Supabase se estiver configurado
-if (process.env.SUPABASE_URL && process.env.SUPABASE_KEY) {
-  console.log("Using Supabase storage exclusively");
-  storage = new SupabaseStorage();
-}
-// Caso não tenha Supabase configurado, usa o storage em memória
+// Usa o Neon PostgreSQL
+if (process.env.DATABASE_URL) {
+  console.log("Usando armazenamento Neon PostgreSQL");
+  storage = new NeonStorage();
+} 
+// Caso não tenha Neon configurado, usa o storage em memória
 else {
-  console.log("Using in-memory storage");
+  console.log("Usando armazenamento em memória (fallback)");
   storage = new MemStorage();
 }
 
