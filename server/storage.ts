@@ -540,6 +540,11 @@ import { SupabaseStorage } from './supabaseStorage';
 // Cria e exporta a instância de armazenamento
 let storage: IStorage;
 
+// Temporariamente forçar o uso do armazenamento em memória para depuração
+console.log("Using in-memory storage (temporarily forced for debugging)");
+storage = new MemStorage();
+
+/* Código original comentado para depuração
 // Em produção na Vercel, utilizamos Supabase (se configurado)
 if (process.env.SUPABASE_URL && process.env.SUPABASE_KEY) {
   console.log("Using Supabase storage");
@@ -559,5 +564,6 @@ else {
   console.log("Using in-memory storage");
   storage = new MemStorage();
 }
+*/
 
 export { storage };
