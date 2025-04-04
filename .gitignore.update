@@ -1,11 +1,3 @@
-node_modules
-dist
-dist-ssr
-.DS_Store
-server/public
-vite.config.ts.*
-*.tar.gz
-
 # Ignorar arquivos de ambiente local
 .env
 .env.local
@@ -15,3 +7,7 @@ vite.config.ts.*
 
 # Ignorar build Vercel
 .vercel
+
+# Adicionar a pasta dist ao .gitignore
+dist
+dist-ssr

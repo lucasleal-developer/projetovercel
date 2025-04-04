@@ -518,17 +518,28 @@ export class PostgresStorage implements IStorage {
   }
 }
 
+// Importa o storage de Supabase
+import { SupabaseStorage } from './supabaseStorage';
+
 // Cria e exporta a instância de armazenamento
 let storage: IStorage;
 
-if (process.env.DATABASE_URL) {
+// Em produção na Vercel, utilizamos Supabase (se configurado)
+if (process.env.SUPABASE_URL && process.env.SUPABASE_KEY) {
+  console.log("Using Supabase storage");
+  storage = new SupabaseStorage();
+} 
+// Caso tenha um DATABASE_URL padrão, usa o PostgreSQL direto
+else if (process.env.DATABASE_URL) {
   console.log("Using PostgreSQL storage");
   storage = new PostgresStorage(process.env.DATABASE_URL);
   (storage as PostgresStorage).connect().catch(err => {
     console.error("Failed to connect to PostgreSQL, falling back to in-memory storage:", err);
     storage = new MemStorage();
   });
-} else {
+} 
+// Caso contrário, usa o storage em memória
+else {
   console.log("Using in-memory storage");
   storage = new MemStorage();
 }
