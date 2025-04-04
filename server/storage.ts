@@ -452,22 +452,119 @@ export class PostgresStorage implements IStorage {
 
   // Tipos de Atividades
   async getAllActivityTypes(): Promise<ActivityType[]> {
-    return await this.db.select().from(activityTypeTable);
+    try {
+      // Tentar via drizzle ORM primeiro
+      return await this.db.select().from(activityTypeTable);
+    } catch (error) {
+      console.error("Erro ao buscar tipos de atividades via ORM:", error);
+      
+      try {
+        // Verificar se a tabela existe
+        const tableExists = await this.client.query(`
+          SELECT EXISTS (
+            SELECT 1 
+            FROM information_schema.tables 
+            WHERE table_schema = 'public' 
+            AND table_name = 'activity_types'
+          );
+        `);
+        
+        if (!tableExists.rows[0].exists) {
+          console.warn("Tabela 'activity_types' não existe. Tentando criar via SQL direto.");
+          // Criar a tabela
+          await this.client.query(`
+            CREATE TABLE IF NOT EXISTS activity_types (
+              id SERIAL PRIMARY KEY,
+              code TEXT NOT NULL UNIQUE,
+              name TEXT NOT NULL,
+              color TEXT NOT NULL
+            );
+          `);
+          console.log("Tabela activity_types criada com sucesso");
+          
+          // Inserir tipos de atividade padrão
+          for (const actType of defaultActivityTypes) {
+            await this.client.query(`
+              INSERT INTO activity_types (code, name, color)
+              VALUES ($1, $2, $3)
+              ON CONFLICT (code) DO NOTHING
+            `, [actType.code, actType.name, actType.color]);
+          }
+          
+          // Buscar novamente após criar
+          const result = await this.client.query('SELECT * FROM activity_types ORDER BY name');
+          return result.rows as ActivityType[];
+        }
+        
+        // Buscar via SQL direto
+        const result = await this.client.query('SELECT * FROM activity_types ORDER BY name');
+        return result.rows as ActivityType[];
+      } catch (sqlError) {
+        console.error("Erro crítico ao buscar/criar tipos de atividades:", sqlError);
+        return []; // Retorna array vazio como último recurso
+      }
+    }
   }
 
   async getActivityType(id: number): Promise<ActivityType | undefined> {
-    const result = await this.db.select().from(activityTypeTable).where(eq(activityTypeTable.id, id));
-    return result[0];
+    try {
+      const result = await this.db.select().from(activityTypeTable).where(eq(activityTypeTable.id, id));
+      return result[0];
+    } catch (error) {
+      console.error("Erro ao buscar tipo de atividade por ID via ORM:", error);
+      
+      try {
+        const result = await this.client.query('SELECT * FROM activity_types WHERE id = $1', [id]);
+        return result.rows[0] as ActivityType;
+      } catch (sqlError) {
+        console.error("Erro ao buscar tipo de atividade por ID via SQL direto:", sqlError);
+        return undefined;
+      }
+    }
   }
 
   async getActivityTypeByCode(code: string): Promise<ActivityType | undefined> {
-    const result = await this.db.select().from(activityTypeTable).where(eq(activityTypeTable.code, code));
-    return result[0];
+    try {
+      const result = await this.db.select().from(activityTypeTable).where(eq(activityTypeTable.code, code));
+      return result[0];
+    } catch (error) {
+      console.error("Erro ao buscar tipo de atividade por código via ORM:", error);
+      
+      try {
+        const result = await this.client.query('SELECT * FROM activity_types WHERE code = $1', [code]);
+        return result.rows[0] as ActivityType;
+      } catch (sqlError) {
+        console.error("Erro ao buscar tipo de atividade por código via SQL direto:", sqlError);
+        return undefined;
+      }
+    }
   }
 
   async createActivityType(activityType: InsertActivityType): Promise<ActivityType> {
-    const result = await this.db.insert(activityTypeTable).values(activityType).returning();
-    return result[0];
+    try {
+      const result = await this.db.insert(activityTypeTable).values(activityType).returning();
+      return result[0];
+    } catch (error) {
+      console.error("Erro ao criar tipo de atividade via ORM:", error);
+      
+      try {
+        const result = await this.client.query(
+          `INSERT INTO activity_types (code, name, color) 
+           VALUES ($1, $2, $3) 
+           RETURNING *`,
+          [activityType.code, activityType.name, activityType.color]
+        );
+        
+        if (result.rows && result.rows.length > 0) {
+          return result.rows[0] as ActivityType;
+        }
+        
+        throw new Error("Falha ao inserir dados via SQL direto");
+      } catch (sqlError) {
+        console.error("Erro crítico ao criar tipo de atividade:", sqlError);
+        throw new Error(`Erro ao criar tipo de atividade: ${(sqlError as Error).message}`);
+      }
+    }
   }
 
   async updateActivityType(id: number, data: Partial<InsertActivityType>): Promise<ActivityType | undefined> {
@@ -540,13 +637,8 @@ import { SupabaseStorage } from './supabaseStorage';
 // Cria e exporta a instância de armazenamento
 let storage: IStorage;
 
-// Em produção na Vercel, utilizamos Supabase (se configurado)
-if (process.env.SUPABASE_URL && process.env.SUPABASE_KEY) {
-  console.log("Using Supabase storage");
-  storage = new SupabaseStorage();
-} 
-// Caso tenha um DATABASE_URL padrão, usa o PostgreSQL direto
-else if (process.env.DATABASE_URL) {
+// Prioriza o uso do PostgreSQL direto se DATABASE_URL for fornecido
+if (process.env.DATABASE_URL) {
   console.log("Using PostgreSQL storage");
   storage = new PostgresStorage(process.env.DATABASE_URL);
   (storage as PostgresStorage).connect().catch(err => {
@@ -554,6 +646,11 @@ else if (process.env.DATABASE_URL) {
     storage = new MemStorage();
   });
 } 
+// Se não tiver PostgreSQL mas tiver Supabase configurado
+else if (process.env.SUPABASE_URL && process.env.SUPABASE_KEY) {
+  console.log("Using Supabase storage");
+  storage = new SupabaseStorage();
+}
 // Caso contrário, usa o storage em memória
 else {
   console.log("Using in-memory storage");

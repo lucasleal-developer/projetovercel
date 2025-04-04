@@ -2,16 +2,29 @@ import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 import { initSupabase } from "./supabase";
+import { initializeDatabase } from "./initDatabase";
 
-// Inicializa o Supabase (criação de tabelas e dados iniciais)
-initSupabase().then(success => {
-  if (success) {
+// Inicializa o banco de dados
+Promise.all([
+  // Tenta inicializar via Supabase e PostgreSQL diretamente para garantir redundância
+  initSupabase().catch(err => {
+    log(`Erro ao inicializar Supabase: ${err}`);
+    return false;
+  }),
+  initializeDatabase().catch(err => {
+    log(`Erro ao inicializar banco direto: ${err}`);
+    return false;
+  })
+]).then(([supabaseSuccess, dbDirectSuccess]) => {
+  if (supabaseSuccess) {
     log("Inicialização do Supabase concluída com sucesso!");
-  } else {
-    log("Falha na inicialização do Supabase, verifique os logs para mais detalhes.");
   }
-}).catch(err => {
-  log(`Erro na inicialização do Supabase: ${err}`);
+  if (dbDirectSuccess) {
+    log("Inicialização do banco PostgreSQL direto concluída com sucesso!");
+  }
+  if (!supabaseSuccess && !dbDirectSuccess) {
+    log("Falha crítica na inicialização do banco de dados. Usando armazenamento em memória.");
+  }
 });
 
 const app = express();

@@ -75,9 +75,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // API para tipos de atividades
   apiRouter.get("/activity-types", async (req: Request, res: Response) => {
     try {
+      console.log("Iniciando busca de tipos de atividades...");
       const activityTypes = await storage.getAllActivityTypes();
-      res.json(activityTypes);
+      console.log("Tipos de atividades encontrados:", activityTypes ? activityTypes.length : 0);
+      res.json(activityTypes || []);
     } catch (error) {
+      console.error("Erro ao buscar tipos de atividades:", error);
       res.status(500).json({ message: "Erro ao buscar tipos de atividades" });
     }
   });

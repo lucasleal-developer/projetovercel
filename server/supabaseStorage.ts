@@ -1,5 +1,6 @@
 import { supabase } from './supabase';
 import { IStorage } from './storage';
+import { pool } from './db';
 import {
   User, InsertUser,
   Professional, InsertProfessional,
@@ -194,16 +195,68 @@ export class SupabaseStorage implements IStorage {
   
   // Tipos de Atividades
   async getAllActivityTypes(): Promise<ActivityType[]> {
-    const { data, error } = await supabase
-      .from('activity_types')
-      .select('*')
-      .order('name');
-    
-    if (error) {
-      throw new Error(`Erro ao buscar tipos de atividades: ${error.message}`);
+    try {
+      console.log("SupabaseStorage: Buscando todos os tipos de atividades");
+      
+      // Usar SQL direto em vez do Supabase client
+      try {
+        
+        // Verificar se a tabela existe
+        const tableExists = await pool.query(`
+          SELECT EXISTS (
+            SELECT 1 
+            FROM information_schema.tables 
+            WHERE table_schema = 'public' 
+            AND table_name = 'activity_types'
+          );
+        `);
+        
+        if (!tableExists.rows[0].exists) {
+          console.warn("Tabela 'activity_types' não existe. Tentando criar via SQL direto.");
+          // Criar a tabela
+          await pool.query(`
+            CREATE TABLE IF NOT EXISTS activity_types (
+              id SERIAL PRIMARY KEY,
+              code TEXT NOT NULL UNIQUE,
+              name TEXT NOT NULL,
+              color TEXT NOT NULL
+            );
+          `);
+          console.log("Tabela activity_types criada com sucesso");
+          
+          // Se a tabela foi criada agora, retorna lista vazia
+          return [];
+        }
+        
+        // Buscar dados diretamente via SQL
+        const result = await pool.query('SELECT * FROM activity_types ORDER BY name');
+        console.log("Tipos de atividades encontrados via SQL direto:", result.rows.length);
+        return result.rows as ActivityType[];
+      } catch (sqlError) {
+        console.error("Erro ao buscar tipos de atividades via SQL direto:", sqlError);
+        
+        // Tentar usar Supabase como fallback
+        try {
+          const { data, error } = await supabase
+            .from('activity_types')
+            .select('*')
+            .order('name');
+          
+          if (error) {
+            console.error("Erro do Supabase ao buscar tipos de atividades:", error);
+            return [];
+          }
+          
+          return data as ActivityType[] || [];
+        } catch (error) {
+          console.error("Erro do Supabase:", error);
+          return [];
+        }
+      }
+    } catch (error) {
+      console.error("Erro não tratado ao buscar tipos de atividades:", error);
+      return []; // Retorna array vazio em caso de erro para não quebrar a UI
     }
-    
-    return data as ActivityType[] || [];
   }
 
   async getActivityType(id: number): Promise<ActivityType | undefined> {
@@ -229,17 +282,44 @@ export class SupabaseStorage implements IStorage {
   }
 
   async createActivityType(activityType: InsertActivityType): Promise<ActivityType> {
-    const { data, error } = await supabase
-      .from('activity_types')
-      .insert(activityType)
-      .select()
-      .single();
-    
-    if (error || !data) {
-      throw new Error(`Erro ao criar tipo de atividade: ${error?.message || 'Desconhecido'}`);
+    try {
+      // Tentar primeiro via SQL direto
+      
+      const { rows } = await pool.query(
+        `INSERT INTO activity_types (code, name, color) 
+         VALUES ($1, $2, $3) 
+         RETURNING *`,
+        [activityType.code, activityType.name, activityType.color]
+      );
+      
+      if (rows && rows.length > 0) {
+        console.log("Tipo de atividade criado via SQL direto:", rows[0]);
+        return rows[0] as ActivityType;
+      }
+      
+      throw new Error("Falha ao inserir dados via SQL direto");
+    } catch (sqlError) {
+      console.error("Erro ao criar tipo de atividade via SQL direto:", sqlError);
+      
+      // Tentar via Supabase como fallback
+      try {
+        const { data, error } = await supabase
+          .from('activity_types')
+          .insert(activityType)
+          .select()
+          .single();
+        
+        if (error || !data) {
+          throw new Error(`Erro ao criar tipo de atividade via Supabase: ${error?.message || 'Desconhecido'}`);
+        }
+        
+        return data as ActivityType;
+      } catch (error) {
+        const supabaseError = error as Error;
+        console.error("Erro do Supabase:", supabaseError);
+        throw new Error(`Erro ao criar tipo de atividade: ${supabaseError.message}`);
+      }
     }
-    
-    return data as ActivityType;
   }
 
   async updateActivityType(id: number, data: Partial<InsertActivityType>): Promise<ActivityType | undefined> {
