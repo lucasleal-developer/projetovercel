@@ -15,6 +15,7 @@ function Router() {
       <Route path="/schedule" component={Schedule} />
       <Route path="/settings" component={Settings} />
       <Route path="/professor-semanal" component={ProfessorSemanal} />
+      <Route path="/compartilhado" component={ProfessorSemanal} /> {/* Rota para visualizações compartilhadas */}
       <Route component={NotFound} />
     </Switch>
   );
