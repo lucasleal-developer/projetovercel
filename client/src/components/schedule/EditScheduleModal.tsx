@@ -192,9 +192,6 @@ export function EditScheduleModal({
                 <SelectValue placeholder="Selecione uma atividade" />
               </SelectTrigger>
               <SelectContent>
-                {/* Opção padrão para indisponível */}
-                <SelectItem value="disponivel_horario">Indisponível</SelectItem>
-                
                 {/* Tipos de atividade do banco de dados */}
                 {Array.isArray(activityTypes) && activityTypes.map((activity: any) => (
                   <SelectItem key={activity.id || activity.code} value={activity.code}>
