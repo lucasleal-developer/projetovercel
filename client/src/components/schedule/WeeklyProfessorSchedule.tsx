@@ -211,11 +211,7 @@ export function WeeklyProfessorSchedule({ professional }: WeeklyProfessorSchedul
       }
     },
     onSuccess: () => {
-      toast({
-        title: isNewActivity ? "Atividade criada" : "Atividade atualizada",
-        description: "A escala foi atualizada com sucesso.",
-        variant: "default",
-      });
+      // Removidas as notificações de toast
       
       // Atualiza a lista de escalas para todos os dias da semana após um breve atraso
       setTimeout(() => {
@@ -228,13 +224,8 @@ export function WeeklyProfessorSchedule({ professional }: WeeklyProfessorSchedul
       setIsModalOpen(false);
     },
     onError: (error) => {
+      // Apenas log do erro no console, sem toast
       console.error("Erro na requisição:", error);
-      
-      toast({
-        title: "Erro",
-        description: `Falha ao salvar: ${error.message}`,
-        variant: "destructive",
-      });
     }
   });
   

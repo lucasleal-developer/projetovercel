@@ -223,21 +223,12 @@ export function ScheduleActions({
     // Mostrar slots vazios
     url.searchParams.set('vazios', filterOptions.showEmptySlots ? '1' : '0');
     
-    // Copia para a área de transferência
+    // Copia para a área de transferência sem notificações toast
     navigator.clipboard.writeText(url.toString())
       .then(() => {
-        toast({
-          title: "Link copiado!",
-          description: "O link compartilhável foi copiado para a área de transferência.",
-          variant: "default",
-        });
+        console.log("Link copiado para a área de transferência.");
       })
       .catch((err) => {
-        toast({
-          title: "Erro ao copiar link",
-          description: "Não foi possível copiar o link. Tente novamente.",
-          variant: "destructive",
-        });
         console.error("Erro ao copiar link:", err);
       });
   };

@@ -24,7 +24,7 @@ function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <Router />
-      <Toaster />
+      {/* Toaster removido a pedido do usuário - sem notificações */}
     </QueryClientProvider>
   );
 }

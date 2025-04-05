@@ -206,11 +206,7 @@ export default function Schedule() {
     onSuccess: (data) => {
       console.log("Sucesso na requisição:", data);
       
-      toast({
-        title: isNewActivity ? "Atividade criada" : "Atividade atualizada",
-        description: "A escala foi atualizada com sucesso.",
-        variant: "default",
-      });
+      // Removidas as notificações toast de sucesso
       
       // Atualiza a lista de escalas
       queryClient.invalidateQueries({ queryKey: [`/api/schedules/${selectedDay}`] });
@@ -224,26 +220,18 @@ export default function Schedule() {
       closeModal();
     },
     onError: (error) => {
+      // Apenas log de erro no console, sem toast
       console.error("Erro na requisição:", error);
-      
-      toast({
-        title: "Erro",
-        description: `Falha ao salvar: ${error.message}`,
-        variant: "destructive",
-      });
     }
   });
   
   // Efeito para lidar com erros na busca de dados
   useEffect(() => {
     if (isError) {
-      toast({
-        title: "Erro ao carregar dados",
-        description: "Não foi possível carregar a escala. Tente novamente mais tarde.",
-        variant: "destructive",
-      });
+      // Removed toast notification for errors
+      console.error("Erro ao carregar dados");
     }
-  }, [isError, toast]);
+  }, [isError]);
   
   // Função para abrir o modal de edição
   const handleCellClick = (professional: ScheduleProfessional, timeSlot: ScheduleTimeSlot, activity?: ScheduleActivity) => {
@@ -264,11 +252,8 @@ export default function Schedule() {
       setIsNewActivity(true);
       setModalOpen(true);
     } else {
-      toast({
-        title: "Erro",
-        description: "Não há profissionais disponíveis para criar uma nova atividade.",
-        variant: "destructive",
-      });
+      // Sem notificação toast de erro
+      console.error("Não há profissionais disponíveis para criar uma nova atividade.");
     }
   };
   
@@ -304,22 +289,16 @@ export default function Schedule() {
       // Executa todas as promessas
       Promise.all(savePromises)
         .then(() => {
-          toast({
-            title: "Atividades em lote criadas",
-            description: `Foram criadas ${selectedCells.length} atividades com sucesso.`,
-            variant: "default",
-          });
+          // Sem notificação toast de sucesso
+          console.log(`Foram criadas ${selectedCells.length} atividades com sucesso.`);
           
           // Atualiza a lista de escalas
           queryClient.invalidateQueries({ queryKey: [`/api/schedules/${selectedDay}`] });
           closeModal();
         })
         .catch(error => {
-          toast({
-            title: "Erro",
-            description: `Falha ao criar atividades em lote: ${error.message}`,
-            variant: "destructive",
-          });
+          // Sem notificação toast de erro
+          console.error(`Falha ao criar atividades em lote: ${error.message}`);
         });
     } else {
       // Comportamento padrão para uma única célula
@@ -372,11 +351,8 @@ export default function Schedule() {
   const handleFilterApply = (options: { showEmptySlots: boolean, activityTypes: string[] }) => {
     setFilterOptions(options);
     
-    // Aplicar os filtros e atualizar a UI
-    toast({
-      title: "Filtros aplicados",
-      description: `${options.activityTypes.length} tipo(s) de atividade selecionado(s)`,
-    });
+    // Aplicar os filtros sem notificação toast
+    console.log(`Filtros aplicados: ${options.activityTypes.length} tipo(s) de atividade selecionado(s)`);
   };
   
   // Estatísticas agora são calculadas dinamicamente no componente ScheduleStats
