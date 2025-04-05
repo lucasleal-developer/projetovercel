@@ -316,7 +316,7 @@ export function WeeklyProfessorSchedule({ professional }: WeeklyProfessorSchedul
   
   return (
     <Card>
-      <CardHeader className="bg-blue-50 border-b pb-2">
+      <CardHeader className="bg-blue-50 border-b pb-2 sticky top-[4.5rem] z-40">
         <CardTitle className="text-xl flex items-center">
           <div className="h-8 w-8 rounded-full bg-blue-100 flex items-center justify-center mr-2">
             <span className="text-blue-800 font-medium text-xs">{professional.initials}</span>
@@ -325,43 +325,62 @@ export function WeeklyProfessorSchedule({ professional }: WeeklyProfessorSchedul
         </CardTitle>
       </CardHeader>
       <CardContent className="p-0 overflow-x-auto">
-        <div className="min-w-max">
-          <table className="w-full border-collapse">
-            <thead>
-              <tr className="bg-gray-50">
-                <th className="p-3 border text-left font-medium text-sm">Horário</th>
-                {weekdays.map(day => (
-                  <th key={day} className="p-3 border text-center font-medium text-sm">
-                    {weekdayNames[day]}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {Object.entries(weeklyData)
-                .sort(([timeA], [timeB]) => {
-                  const startTimeA = timeA.split('-')[0];
-                  const startTimeB = timeB.split('-')[0];
-                  return startTimeA.localeCompare(startTimeB);
-                })
-                .map(([timeRange, cells]) => {
-                  const [startTime, endTime] = timeRange.split('-');
-                  
-                  return (
-                    <tr key={timeRange} className="border-b hover:bg-gray-50">
-                      <td className="p-2 border font-medium text-sm">
-                        {formatTime(startTime)} - {formatTime(endTime)}
-                      </td>
-                      {cells.map((cell, idx) => (
-                        <td key={`${timeRange}-${cell.weekday}`} className="p-0.5 border h-12">
-                          {renderCell(cell, timeRange)}
+        <div className="min-w-max relative">
+          {/* Cabeçalho fixo da tabela (logo abaixo do cabeçalho do card) */}
+          <div className="sticky top-[7.5rem] z-30 bg-white shadow-sm">
+            <table className="w-full border-collapse">
+              <thead>
+                <tr className="bg-gray-50">
+                  <th className="p-3 border text-left font-medium text-sm sticky left-0 z-40 bg-gray-50">Horário</th>
+                  {weekdays.map(day => (
+                    <th key={day} className="p-3 border text-center font-medium text-sm">
+                      {weekdayNames[day]}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+            </table>
+          </div>
+          
+          {/* Conteúdo da tabela com scroll */}
+          <div className="overflow-auto max-h-[calc(100vh-280px)]">
+            <table className="w-full border-collapse">
+              <thead className="invisible">
+                <tr>
+                  <th className="p-3 border text-left font-medium text-sm">Horário</th>
+                  {weekdays.map(day => (
+                    <th key={day} className="p-3 border text-center font-medium text-sm">
+                      {weekdayNames[day]}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {Object.entries(weeklyData)
+                  .sort(([timeA], [timeB]) => {
+                    const startTimeA = timeA.split('-')[0];
+                    const startTimeB = timeB.split('-')[0];
+                    return startTimeA.localeCompare(startTimeB);
+                  })
+                  .map(([timeRange, cells]) => {
+                    const [startTime, endTime] = timeRange.split('-');
+                    
+                    return (
+                      <tr key={timeRange} className="border-b hover:bg-gray-50">
+                        <td className="p-2 border font-medium text-sm sticky left-0 z-20 bg-white">
+                          {formatTime(startTime)} - {formatTime(endTime)}
                         </td>
-                      ))}
-                    </tr>
-                  );
-                })}
-            </tbody>
-          </table>
+                        {cells.map((cell, idx) => (
+                          <td key={`${timeRange}-${cell.weekday}`} className="p-0.5 border h-12">
+                            {renderCell(cell, timeRange)}
+                          </td>
+                        ))}
+                      </tr>
+                    );
+                  })}
+              </tbody>
+            </table>
+          </div>
         </div>
       </CardContent>
       
