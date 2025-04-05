@@ -86,9 +86,17 @@ export function ProfessorSemanal() {
     setSelectedProfessional(professional);
   };
   
+  // Estado para controlar o texto do botão
+  const [copyButtonText, setCopyButtonText] = useState("Copiar Link");
+  const [isCopying, setIsCopying] = useState(false);
+  
   // Função para copiar link compartilhável
   const copyShareableLink = () => {
-    if (!selectedProfessional) return;
+    if (!selectedProfessional || isCopying) return;
+    
+    // Atualizar estado para evitar múltiplos cliques
+    setIsCopying(true);
+    setCopyButtonText("Link copiado");
     
     // Gerar token seguro para o professor
     const token = generateShareToken(selectedProfessional.id);
@@ -102,9 +110,22 @@ export function ProfessorSemanal() {
     navigator.clipboard.writeText(url.toString())
       .then(() => {
         console.log("Link seguro copiado para a área de transferência.");
+        
+        // Após 2 segundos, resetar o texto do botão
+        setTimeout(() => {
+          setCopyButtonText("Copiar Link");
+          setIsCopying(false);
+        }, 2000);
       })
       .catch((err) => {
         console.error("Erro ao copiar link:", err);
+        setCopyButtonText("Erro ao copiar");
+        
+        // Mesmo com erro, resetar após 2 segundos
+        setTimeout(() => {
+          setCopyButtonText("Copiar Link");
+          setIsCopying(false);
+        }, 2000);
       });
   };
 
@@ -197,9 +218,10 @@ export function ProfessorSemanal() {
                             variant="outline" 
                             className="flex items-center gap-2"
                             onClick={copyShareableLink}
+                            disabled={isCopying}
                           >
                             <Share2 className="h-4 w-4" />
-                            Copiar Link
+                            {copyButtonText}
                           </Button>
                         )}
                       </div>

@@ -47,6 +47,9 @@ export function ScheduleActions({
   const [suggestions, setSuggestions] = useState<ProfessionalDisplay[]>([]);
   const [selectedProfessionals, setSelectedProfessionals] = useState<ProfessionalDisplay[]>(initialProfessionals);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
+  // Estado para controlar o texto do botão de compartilhamento
+  const [copyButtonText, setCopyButtonText] = useState("Copiar Link");
+  const [isCopying, setIsCopying] = useState(false);
   // Inicializar com os valores do URL se disponíveis
   const getInitialFilterOptions = () => {
     const url = new URL(window.location.href);
@@ -203,6 +206,12 @@ export function ScheduleActions({
   
   // Função para copiar link compartilhável
   const copyShareableLink = () => {
+    if (isCopying) return;
+    
+    // Atualizar estado para evitar múltiplos cliques
+    setIsCopying(true);
+    setCopyButtonText("Link copiado");
+    
     // Constrói a URL com os parâmetros relevantes (dia, profissionais selecionados, filtros)
     const url = new URL(window.location.href);
     
@@ -223,13 +232,26 @@ export function ScheduleActions({
     // Mostrar slots vazios
     url.searchParams.set('vazios', filterOptions.showEmptySlots ? '1' : '0');
     
-    // Copia para a área de transferência sem notificações toast
+    // Copia para a área de transferência
     navigator.clipboard.writeText(url.toString())
       .then(() => {
         console.log("Link copiado para a área de transferência.");
+        
+        // Após 2 segundos, resetar o texto do botão
+        setTimeout(() => {
+          setCopyButtonText("Copiar Link");
+          setIsCopying(false);
+        }, 2000);
       })
       .catch((err) => {
         console.error("Erro ao copiar link:", err);
+        setCopyButtonText("Erro ao copiar");
+        
+        // Mesmo com erro, resetar após 2 segundos
+        setTimeout(() => {
+          setCopyButtonText("Copiar Link");
+          setIsCopying(false);
+        }, 2000);
       });
   };
   
@@ -250,9 +272,10 @@ export function ScheduleActions({
           variant="outline" 
           className="inline-flex items-center" 
           onClick={copyShareableLink}
+          disabled={isCopying}
         >
           <Share2 className="h-4 w-4 mr-2" />
-          Copiar Link
+          {copyButtonText}
         </Button>
       
         {/* Área de seleção de profissionais */}
