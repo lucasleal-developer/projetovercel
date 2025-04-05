@@ -166,7 +166,8 @@ export function WeeklyProfessorSchedule({ professional }: WeeklyProfessorSchedul
           
           if (profData && Array.isArray(profData.horarios)) {
             profData.horarios.forEach((schedule: any) => {
-              const timeKey = `${schedule.inicio}-${schedule.fim}`;
+              // Usando hora e horaFim (nomes da API)
+              const timeKey = `${schedule.hora}-${schedule.horaFim}`;
               
               // Se o slot de tempo existe na grade
               if (weeklyScheduleData[timeKey]) {
