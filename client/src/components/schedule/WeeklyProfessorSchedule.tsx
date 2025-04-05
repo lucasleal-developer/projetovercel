@@ -316,7 +316,7 @@ export function WeeklyProfessorSchedule({ professional }: WeeklyProfessorSchedul
   
   return (
     <Card>
-      <CardHeader className="bg-blue-50 border-b pb-2 sticky top-[4.5rem] z-40">
+      <CardHeader className="bg-blue-50 border-b pb-2">
         <CardTitle className="text-xl flex items-center">
           <div className="h-8 w-8 rounded-full bg-blue-100 flex items-center justify-center mr-2">
             <span className="text-blue-800 font-medium text-xs">{professional.initials}</span>
@@ -326,8 +326,8 @@ export function WeeklyProfessorSchedule({ professional }: WeeklyProfessorSchedul
       </CardHeader>
       <CardContent className="p-0 overflow-x-auto">
         <div className="min-w-max relative">
-          {/* Cabeçalho fixo da tabela (logo abaixo do cabeçalho do card) */}
-          <div className="sticky top-[7.5rem] z-30 bg-white shadow-sm">
+          {/* Cabeçalho fixo da tabela que fica no topo quando der scroll */}
+          <div className="sticky top-0 z-50 bg-white shadow-sm">
             <table className="w-full border-collapse">
               <thead>
                 <tr className="bg-gray-50">
