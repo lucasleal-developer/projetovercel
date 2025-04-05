@@ -76,6 +76,7 @@ interface Schedule {
 interface ScheduleCell {
   weekday: string;
   activity?: {
+    id?: number;
     code: string;
     name: string;
     location?: string;
@@ -122,14 +123,14 @@ export function WeeklyProfessorSchedule({ professional }: WeeklyProfessorSchedul
   });
   
   // Buscar tipos de atividade
-  const { data: activityTypes, isLoading: activityTypesLoading } = useQuery({
+  const { data: activityTypes = [], isLoading: activityTypesLoading } = useQuery<ActivityType[]>({
     queryKey: ['/api/activity-types'],
     staleTime: 30000
   });
   
   // Buscar escalas para cada dia da semana
   const weekdayQueries = weekdays.map(weekday => {
-    return useQuery({
+    return useQuery<any>({
       queryKey: [`/api/schedules/${weekday}`],
       staleTime: 5000,
       enabled: !!professional
@@ -179,6 +180,7 @@ export function WeeklyProfessorSchedule({ professional }: WeeklyProfessorSchedul
                   weeklyScheduleData[timeKey][dayIndex] = {
                     weekday,
                     activity: {
+                      id: schedule.id, // Adicionado o ID para edição
                       code: schedule.atividade,
                       name: getActivityName(schedule.atividade),
                       location: schedule.local,
@@ -269,10 +271,22 @@ export function WeeklyProfessorSchedule({ professional }: WeeklyProfessorSchedul
     const activityCode = cell.activity.code;
     const colors = getActivityColor(activityCode);
     
+    // Buscar o tipo de atividade para obter a cor exata
+    const activityType = activityTypes.find((at: ActivityType) => at.code === activityCode);
+    const colorHex = activityType?.color || "#ffffff";
+    
+    // Criar estilos inline para usar a cor exata
+    const style = {
+      backgroundColor: colorHex ? `${colorHex}22` : undefined, // 22 é 13% de opacidade em hex
+      borderLeft: `3px solid ${colorHex}`,
+    };
+    
     return (
       <div 
-        className={`h-full p-2 ${colors.bg} ${colors.hoverBg} rounded cursor-pointer`}
+        className="h-full p-2 hover:bg-opacity-30 rounded cursor-pointer"
+        style={style}
         onClick={() => handleCellClick(timeSlot, cell.weekday, {
+          id: cell.activity?.id, // Usar o ID da atividade da célula, não do tipo de atividade
           atividade: cell.activity?.code,
           local: cell.activity?.location,
           observacoes: cell.activity?.notes
