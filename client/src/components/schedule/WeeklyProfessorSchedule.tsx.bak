@@ -105,9 +105,6 @@ export function WeeklyProfessorSchedule({ professional }: WeeklyProfessorSchedul
   const { toast } = useToast();
   const queryClient = useQueryClient();
   
-  // Estado para acompanhar se a visualização é móvel ou não
-  const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
-  
   // Constantes para dias da semana
   const weekdays = ["segunda", "terca", "quarta", "quinta", "sexta", "sabado", "domingo"];
   const weekdayNames: Record<string, string> = {
@@ -118,29 +115,6 @@ export function WeeklyProfessorSchedule({ professional }: WeeklyProfessorSchedul
     "sexta": "Sexta",
     "sabado": "Sábado",
     "domingo": "Domingo"
-  };
-  
-  // Atualizar o estado quando a janela for redimensionada
-  useEffect(() => {
-    const handleResize = () => {
-      setIsMobile(window.innerWidth < 768);
-    };
-    
-    window.addEventListener('resize', handleResize);
-    
-    // Limpeza
-    return () => {
-      window.removeEventListener('resize', handleResize);
-    };
-  }, []);
-
-  // Formatar hora para exibição
-  const formatTime = (time: string) => {
-    // Em dispositivos móveis, remover os minutos quando forem zero
-    if (isMobile && time.endsWith(':00')) {
-      return time.replace(':00', 'h');
-    }
-    return time.replace(/:(\d+)$/, "h$1");
   };
   
   // Buscar slots de tempo
@@ -321,6 +295,32 @@ export function WeeklyProfessorSchedule({ professional }: WeeklyProfessorSchedul
         )}
       </div>
     );
+  };
+  
+  // Estado para acompanhar se a visualização é móvel ou não
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+  
+  // Atualizar o estado quando a janela for redimensionada
+  useEffect(() => {
+    const handleResize = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+    
+    window.addEventListener('resize', handleResize);
+    
+    // Limpeza
+    return () => {
+      window.removeEventListener('resize', handleResize);
+    };
+  }, []);
+
+  // Formatar hora para exibição
+  const formatTime = (time: string) => {
+    // Em dispositivos móveis, remover os minutos quando forem zero
+    if (isMobile && time.endsWith(':00')) {
+      return time.replace(':00', 'h');
+    }
+    return time.replace(/:(\d+)$/, "h$1");
   };
   
   if (isLoading) {
