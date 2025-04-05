@@ -326,30 +326,14 @@ export function WeeklyProfessorSchedule({ professional }: WeeklyProfessorSchedul
       </CardHeader>
       <CardContent className="p-0 overflow-x-auto">
         <div className="min-w-max relative">
-          {/* Cabeçalho fixo da tabela que fica no topo quando der scroll */}
-          <div className="sticky top-0 z-50 bg-white shadow-sm">
-            <table className="w-full border-collapse">
-              <thead>
-                <tr className="bg-gray-50">
-                  <th className="p-3 border text-left font-medium text-sm sticky left-0 z-40 bg-gray-50">Horário</th>
-                  {weekdays.map(day => (
-                    <th key={day} className="p-3 border text-center font-medium text-sm">
-                      {weekdayNames[day]}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-            </table>
-          </div>
-          
-          {/* Conteúdo da tabela com scroll */}
+          {/* Tabela única com cabeçalho fixo */}
           <div className="overflow-auto max-h-[calc(100vh-280px)]">
             <table className="w-full border-collapse">
-              <thead className="invisible">
+              <thead className="bg-gray-50 sticky top-0 z-50">
                 <tr>
-                  <th className="p-3 border text-left font-medium text-sm">Horário</th>
+                  <th className="p-3 border text-left font-medium text-sm sticky left-0 z-40 bg-gray-50 w-[120px]">Horário</th>
                   {weekdays.map(day => (
-                    <th key={day} className="p-3 border text-center font-medium text-sm">
+                    <th key={day} className="p-3 border text-center font-medium text-sm w-[140px]">
                       {weekdayNames[day]}
                     </th>
                   ))}
@@ -367,11 +351,11 @@ export function WeeklyProfessorSchedule({ professional }: WeeklyProfessorSchedul
                     
                     return (
                       <tr key={timeRange} className="border-b hover:bg-gray-50">
-                        <td className="p-2 border font-medium text-sm sticky left-0 z-20 bg-white">
+                        <td className="p-2 border font-medium text-sm sticky left-0 z-20 bg-white w-[120px]">
                           {formatTime(startTime)} - {formatTime(endTime)}
                         </td>
                         {cells.map((cell, idx) => (
-                          <td key={`${timeRange}-${cell.weekday}`} className="p-0.5 border h-12">
+                          <td key={`${timeRange}-${cell.weekday}`} className="p-0.5 border h-12 w-[140px]">
                             {renderCell(cell, timeRange)}
                           </td>
                         ))}
