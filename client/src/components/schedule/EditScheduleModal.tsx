@@ -69,7 +69,8 @@ export function EditScheduleModal({
   isNew = false,
   selectedCells = []
 }: EditScheduleModalProps) {
-  const [selectedActivity, setSelectedActivity] = useState<string>(currentActivity?.atividade || "disponivel_horario");
+  // Estado local para a atividade selecionada no dropdown
+  const [selectedActivity, setSelectedActivity] = useState<string>("disponivel_horario");
   
   // Buscar tipos de atividade do servidor
   const { data: activityTypes = [] } = useQuery({
@@ -84,18 +85,22 @@ export function EditScheduleModal({
       weekday: weekday,
       startTime: timeSlot?.startTime || "",
       endTime: timeSlot?.endTime || "",
-      activityCode: currentActivity?.atividade || "disponivel_horario",
-      location: currentActivity?.local || "",
-      notes: currentActivity?.observacoes || ""
+      activityCode: "disponivel_horario",
+      location: "",
+      notes: ""
     }
   });
   
   // Atualiza o formulário quando os props mudam
   useEffect(() => {
     if (isOpen) {
+      // Define o valor inicial da atividade quando o modal abre
       const activityValue = currentActivity?.atividade || "disponivel_horario";
+      
+      // Atualiza o estado local
       setSelectedActivity(activityValue);
       
+      // Atualiza o formulário com os valores apropriados
       reset({
         professionalId: professional?.id || 0,
         weekday: weekday,
@@ -108,14 +113,16 @@ export function EditScheduleModal({
     }
   }, [isOpen, professional, timeSlot, currentActivity, weekday, reset]);
   
+  // Manipulador para alteração da atividade selecionada no dropdown
   const handleActivityChange = (value: string) => {
     setSelectedActivity(value);
-    setValue("activityCode", value);
+    setValue("activityCode", value); // Atualiza o valor no formulário
     console.log("Atividade selecionada:", value);
   };
   
+  // Submissão do formulário
   const onSubmit = (data: ScheduleFormValues) => {
-    // Certifica-se que a atividade selecionada está no objeto de dados
+    // Garantimos que o código de atividade atualizado seja incluído
     const submittedData = {
       ...data,
       activityCode: selectedActivity
@@ -200,7 +207,13 @@ export function EditScheduleModal({
                 ))}
               </SelectContent>
             </Select>
-            <input type="hidden" {...register("activityCode")} value={selectedActivity} />
+            {/* Usamos register apenas para inicialização mas a mudança é feita via setValue */}
+            <input 
+              type="hidden" 
+              {...register("activityCode")} 
+              id="activityCode"
+              onChange={() => {}} // Evita warning de componente não controlado
+            />
             {errors.activityCode && (
               <p className="text-xs text-red-500 mt-1">{errors.activityCode.message}</p>
             )}

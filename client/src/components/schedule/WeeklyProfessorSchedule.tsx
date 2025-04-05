@@ -139,64 +139,67 @@ export function WeeklyProfessorSchedule({ professional }: WeeklyProfessorSchedul
   
   // Processar dados quando todas as queries estiverem completas
   useEffect(() => {
-    if (professional && timeSlots && !timeSlotsLoading && 
-        weekdayQueries.every(query => query.data && !query.isLoading)) {
-      
-      // Organizamos os dados por time slot e dia da semana
-      const weeklyScheduleData: Record<string, ScheduleCell[]> = {};
-      
-      // Inicializar a grade vazia com todos os slots de tempo
-      if (Array.isArray(timeSlots)) {
-        timeSlots.forEach((timeSlot: TimeSlot) => {
-          const timeKey = `${timeSlot.startTime}-${timeSlot.endTime}`;
-          weeklyScheduleData[timeKey] = weekdays.map(weekday => ({
-            weekday
-          }));
-        });
-      }
-      
-      // Preencher com as atividades do professor para cada dia
-      weekdayQueries.forEach((query, index) => {
-        const weekday = weekdays[index];
-        const data = query.data;
-        
-        // Verificar se os dados da API são válidos
-        if (data && Array.isArray(data.profissionais)) {
-          // Procurar pelo profissional atual
-          const profData = data.profissionais.find((p: any) => p.id === professional.id);
-          
-          if (profData && Array.isArray(profData.horarios)) {
-            profData.horarios.forEach((schedule: any) => {
-              // Usando hora e horaFim (nomes da API)
-              const timeKey = `${schedule.hora}-${schedule.horaFim}`;
-              
-              // Se o slot de tempo existe na grade
-              if (weeklyScheduleData[timeKey]) {
-                // Encontrar o índice correto para o dia da semana
-                const dayIndex = weekdays.indexOf(weekday);
-                
-                // Adicionar a atividade
-                if (dayIndex >= 0 && weeklyScheduleData[timeKey][dayIndex]) {
-                  weeklyScheduleData[timeKey][dayIndex] = {
-                    weekday,
-                    activity: {
-                      id: schedule.id, // Adicionado o ID para edição
-                      code: schedule.atividade,
-                      name: getActivityName(schedule.atividade),
-                      location: schedule.local,
-                      notes: schedule.observacoes
-                    }
-                  };
-                }
-              }
-            });
-          }
-        }
-      });
-      
-      setWeeklyData(weeklyScheduleData);
+    if (!professional || !timeSlots || timeSlotsLoading || 
+        weekdayQueries.some(query => !query.data || query.isLoading)) {
+      return; // Saímos cedo se não temos todos os dados necessários
     }
-  }, [professional, timeSlots, weekdayQueries, timeSlotsLoading]); // Removido activityTypes da dependência
+      
+    // Organizamos os dados por time slot e dia da semana
+    const weeklyScheduleData: Record<string, ScheduleCell[]> = {};
+    
+    // Inicializar a grade vazia com todos os slots de tempo
+    if (Array.isArray(timeSlots)) {
+      timeSlots.forEach((timeSlot: TimeSlot) => {
+        const timeKey = `${timeSlot.startTime}-${timeSlot.endTime}`;
+        weeklyScheduleData[timeKey] = weekdays.map(weekday => ({
+          weekday
+        }));
+      });
+    }
+    
+    // Preencher com as atividades do professor para cada dia
+    weekdayQueries.forEach((query, index) => {
+      const weekday = weekdays[index];
+      const data = query.data;
+      
+      // Verificar se os dados da API são válidos
+      if (data && Array.isArray(data.profissionais)) {
+        // Procurar pelo profissional atual
+        const profData = data.profissionais.find((p: any) => p.id === professional.id);
+        
+        if (profData && Array.isArray(profData.horarios)) {
+          profData.horarios.forEach((schedule: any) => {
+            // Usando hora e horaFim (nomes da API)
+            const timeKey = `${schedule.hora}-${schedule.horaFim}`;
+            
+            // Se o slot de tempo existe na grade
+            if (weeklyScheduleData[timeKey]) {
+              // Encontrar o índice correto para o dia da semana
+              const dayIndex = weekdays.indexOf(weekday);
+              
+              // Adicionar a atividade
+              if (dayIndex >= 0 && weeklyScheduleData[timeKey][dayIndex]) {
+                weeklyScheduleData[timeKey][dayIndex] = {
+                  weekday,
+                  activity: {
+                    id: schedule.id, // Adicionado o ID para edição
+                    code: schedule.atividade,
+                    name: getActivityName(schedule.atividade),
+                    location: schedule.local,
+                    notes: schedule.observacoes
+                  }
+                };
+              }
+            }
+          });
+        }
+      }
+    });
+    
+    setWeeklyData(weeklyScheduleData);
+  // eslint-disable-next-line react-hooks/exhaustive-deps  
+  }, [professional?.id, JSON.stringify(timeSlots), weekdayQueries.map(q => q.dataUpdatedAt).join(',')]);
+  // Utilizamos técnicas para evitar comparações de objetos complexos que causariam re-renders infinitos
   
   // Mutação para salvar/atualizar atividade
   const { mutate: saveSchedule, isPending: isSaving } = useMutation({
