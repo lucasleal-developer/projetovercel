@@ -8,7 +8,7 @@ import {
   PopoverTrigger
 } from "@/components/ui/popover";
 import { Separator } from "@/components/ui/separator";
-import { Search, Filter, X, Check, Link, Copy, Share2 } from "lucide-react";
+import { Search, Filter, X, Check, Link, Copy, Share2, Calendar } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useQuery } from "@tanstack/react-query";
 import { type Professional } from "@shared/schema";
@@ -253,6 +253,16 @@ export function ScheduleActions({
         )}
       </div>
       <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-2">
+        {/* Botão para visualização semanal */}
+        <Button 
+          variant="outline" 
+          className="inline-flex items-center"
+          onClick={() => window.location.href = "/professor-semanal"}
+        >
+          <Calendar className="h-4 w-4 mr-2" />
+          Visualizar Semanal
+        </Button>
+        
         {/* Botão de compartilhamento */}
         <Button 
           variant="outline" 
