@@ -356,9 +356,9 @@ export function WeeklyProfessorSchedule({ professional }: WeeklyProfessorSchedul
         </div>
         
         <div className="min-w-max relative">
-          {/* Tabela única com cabeçalho fixo */}
+          {/* Tabela única com cabeçalho fixo - removendo table-fixed para resolver problema de layout */}
           <div className="overflow-auto max-h-[calc(100vh-280px)] md:max-h-[calc(100vh-300px)] lg:max-h-[calc(100vh-250px)]">
-            <table className="w-full border-collapse table-fixed">
+            <table className="w-full border-collapse">
               <thead className="bg-gray-50 sticky top-0 z-50">
                 <tr>
                   <th className="p-2 md:p-3 border text-left font-medium text-sm sticky left-0 z-40 bg-gray-50 w-[90px] md:w-[120px]">Horário</th>
@@ -385,7 +385,7 @@ export function WeeklyProfessorSchedule({ professional }: WeeklyProfessorSchedul
                           {formatTime(startTime)} - {formatTime(endTime)}
                         </td>
                         {cells.map((cell, idx) => (
-                          <td key={`${timeRange}-${cell.weekday}`} className="p-0.5 border h-12 w-[100px] md:w-[140px]">
+                          <td key={`${timeRange}-${cell.weekday}`} className="p-0.5 border h-12" style={{ minWidth: '100px' }}>
                             {renderCell(cell, timeRange)}
                           </td>
                         ))}
