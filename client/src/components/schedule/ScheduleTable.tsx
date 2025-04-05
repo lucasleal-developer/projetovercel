@@ -257,9 +257,13 @@ export function ScheduleTable({
                     ? findActivityTypeByCode(activity.atividade) 
                     : undefined;
                   
-                  // Se não encontrar, usamos o código "disponivel_horario" como fallback
-                  const activityCode = activity?.atividade || "disponivel_horario";
-                  const activityName = activityTypeObj?.name || getActivityName(activityCode);
+                  // Se não há atividade, não definimos um código padrão
+                  const activityCode = activity?.atividade || "";
+                  
+                  // Se não há atividade, não exibimos texto
+                  const activityName = activity?.atividade 
+                    ? (activityTypeObj?.name || getActivityName(activityCode))
+                    : "";
                   
                   // Verificar se este item deve ser filtrado com base nos tipos de atividade
                   const matchesFilter = (!filterOptions || !filterOptions.activityTypes || filterOptions.activityTypes.length === 0 || 
@@ -281,14 +285,25 @@ export function ScheduleTable({
                     );
                   }
                   
-                  // Obter as cores do tipo de atividade (seja do objeto ou do código)
-                  const colors = getActivityColor(activityTypeObj || activityCode);
+                  // Se não temos atividade, usamos estilo neutro para células vazias
+                  let colors;
+                  let customColor = "";
+                  let actualColor = "";
+                  let useCustomStyle = false;
                   
-                  // Verificar se a atividade tem uma cor personalizada
-                  const customColor = activityTypeObj?.color || "";
-                  // Obter a cor no formato hexadecimal para todos os tipos de atividade
-                  let actualColor = customColor;
-                  const useCustomStyle = colors.bg === "bg-custom-color";
+                  if (activityCode) {
+                    // Obter as cores do tipo de atividade (seja do objeto ou do código)
+                    colors = getActivityColor(activityTypeObj || activityCode);
+                    
+                    // Verificar se a atividade tem uma cor personalizada
+                    customColor = activityTypeObj?.color || "";
+                    // Obter a cor no formato hexadecimal para todos os tipos de atividade
+                    actualColor = customColor;
+                    useCustomStyle = colors.bg === "bg-custom-color";
+                  } else {
+                    // Para células vazias, usamos cores padrão
+                    colors = { bg: "", hoverBg: "hover:bg-gray-50", text: "text-gray-800", dot: "" };
+                  }
                   
                   return (
                     <td key={`${professional.id}-${timeSlot.startTime}`} className="px-1 py-1">
@@ -313,17 +328,21 @@ export function ScheduleTable({
                         onClick={() => handleCellClick(professional, timeSlot, activity)}
                       >
                         <div className="flex items-center mb-1">
-                          {useCustomStyle ? (
-                            <div 
-                              className="h-3 w-3 rounded-full mr-2" 
-                              style={{ backgroundColor: actualColor }}
-                            ></div>
-                          ) : (
-                            <div className={`h-3 w-3 rounded-full ${colors.dot} mr-2`}></div>
+                          {activityName && (
+                            <>
+                              {useCustomStyle ? (
+                                <div 
+                                  className="h-3 w-3 rounded-full mr-2" 
+                                  style={{ backgroundColor: actualColor }}
+                                ></div>
+                              ) : (
+                                <div className={`h-3 w-3 rounded-full ${colors.dot} mr-2`}></div>
+                              )}
+                              <span className={`text-xs font-medium ${colors.text}`}>
+                                {activityName}
+                              </span>
+                            </>
                           )}
-                          <span className={`text-xs font-medium ${colors.text}`}>
-                            {activityName}
-                          </span>
                         </div>
                         {activity?.local && (
                           <p className="text-xs text-gray-600">{activity.local}</p>
