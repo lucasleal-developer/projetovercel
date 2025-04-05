@@ -5,6 +5,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Calendar, ChevronLeft, Clock, Users, Share2 } from "lucide-react";
+import { generateShareToken, getProfessorIdFromToken } from "@/utils/shareTokens";
 import { ProfessionalSelector } from "@/components/schedule/ProfessionalSelector";
 import { WeeklyProfessorSchedule } from "@/components/schedule/WeeklyProfessorSchedule";
 
@@ -55,7 +56,7 @@ export function ProfessorSemanal() {
   // Obter parâmetros da URL
   const search = useSearch();
   const searchParams = new URLSearchParams(search);
-  const sharedProfId = searchParams.get('prof');
+  const sharedProfToken = searchParams.get('token');
   
   // Buscar dados dos profissionais
   const { data: professionals, isLoading: professionalsLoading } = useQuery({
@@ -65,16 +66,20 @@ export function ProfessorSemanal() {
   
   // Verificar se estamos em uma visualização compartilhada
   useEffect(() => {
-    if (sharedProfId && professionals && Array.isArray(professionals)) {
-      const profId = parseInt(sharedProfId);
-      const foundProf = professionals.find((p: Professional) => p.id === profId);
+    if (sharedProfToken && professionals && Array.isArray(professionals)) {
+      // Decodificar o token para obter o ID do professor
+      const profId = getProfessorIdFromToken(sharedProfToken);
       
-      if (foundProf) {
-        setSelectedProfessional(foundProf);
-        setIsSharedView(true);
+      if (profId !== null) {
+        const foundProf = professionals.find((p: Professional) => p.id === profId);
+        
+        if (foundProf) {
+          setSelectedProfessional(foundProf);
+          setIsSharedView(true);
+        }
       }
     }
-  }, [sharedProfId, professionals]);
+  }, [sharedProfToken, professionals]);
 
   // Função para selecionar um professor
   const handleSelectProfessional = (professional: Professional) => {
@@ -85,15 +90,18 @@ export function ProfessorSemanal() {
   const copyShareableLink = () => {
     if (!selectedProfessional) return;
     
-    // Construir URL com a rota compartilhada e o ID do professor
+    // Gerar token seguro para o professor
+    const token = generateShareToken(selectedProfessional.id);
+    
+    // Construir URL com a rota compartilhada e o token
     const baseUrl = window.location.origin;
     const url = new URL(`${baseUrl}/compartilhado`);
-    url.searchParams.set('prof', selectedProfessional.id.toString());
+    url.searchParams.set('token', token);
     
     // Copiar para a área de transferência
     navigator.clipboard.writeText(url.toString())
       .then(() => {
-        console.log("Link copiado para a área de transferência.");
+        console.log("Link seguro copiado para a área de transferência.");
       })
       .catch((err) => {
         console.error("Erro ao copiar link:", err);
