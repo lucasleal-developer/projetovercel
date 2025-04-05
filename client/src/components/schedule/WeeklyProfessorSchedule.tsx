@@ -1,9 +1,13 @@
 import { useState, useEffect } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { getActivityColor, getActivityName } from "@/utils/activityColors";
+import { scheduleFormSchema, type ScheduleFormValues, type WeekDay } from "@shared/schema";
+import { apiRequest } from "@/lib/queryClient";
+import { EditScheduleModal } from "@/components/schedule/EditScheduleModal";
+import { useToast } from "@/hooks/use-toast";
 
 // Componente de loading spinner
 function LoadingSpinner({ size = "md", className = "" }: { size?: "sm" | "md" | "lg", className?: string }) {
@@ -46,9 +50,9 @@ interface Professional {
 }
 
 interface TimeSlot {
-  id: number;
   startTime: string;
   endTime: string;
+  id?: number;
 }
 
 interface ActivityType {
@@ -91,6 +95,13 @@ interface WeeklyProfessorScheduleProps {
 
 export function WeeklyProfessorSchedule({ professional }: WeeklyProfessorScheduleProps) {
   const [weeklyData, setWeeklyData] = useState<Record<string, ScheduleCell[]>>({});
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [selectedTimeSlot, setSelectedTimeSlot] = useState<TimeSlot | null>(null);
+  const [selectedWeekday, setSelectedWeekday] = useState<WeekDay>("segunda");
+  const [selectedActivity, setSelectedActivity] = useState<any | undefined>(undefined);
+  const [isNewActivity, setIsNewActivity] = useState(false);
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
   
   // Constantes para dias da semana
   const weekdays = ["segunda", "terca", "quarta", "quinta", "sexta", "sabado", "domingo"];
@@ -184,21 +195,88 @@ export function WeeklyProfessorSchedule({ professional }: WeeklyProfessorSchedul
     }
   }, [professional, timeSlots, activityTypes, weekdayQueries, timeSlotsLoading]);
   
+  // Mutação para salvar/atualizar atividade
+  const { mutate: saveSchedule, isPending: isSaving } = useMutation({
+    mutationFn: async (formData: ScheduleFormValues) => {
+      console.log("Mutação sendo executada com dados:", formData);
+      
+      // Se já existe uma atividade, atualiza, senão cria uma nova
+      if (selectedActivity?.id && !isNewActivity) {
+        return apiRequest("PUT", `/api/schedules/${selectedActivity.id}`, formData);
+      } else {
+        return apiRequest("POST", "/api/schedules", formData);
+      }
+    },
+    onSuccess: () => {
+      toast({
+        title: isNewActivity ? "Atividade criada" : "Atividade atualizada",
+        description: "A escala foi atualizada com sucesso.",
+        variant: "default",
+      });
+      
+      // Atualiza a lista de escalas para todos os dias da semana
+      weekdays.forEach(day => {
+        queryClient.invalidateQueries({ queryKey: [`/api/schedules/${day}`] });
+      });
+      
+      // Fechar o modal
+      setIsModalOpen(false);
+    },
+    onError: (error) => {
+      console.error("Erro na requisição:", error);
+      
+      toast({
+        title: "Erro",
+        description: `Falha ao salvar: ${error.message}`,
+        variant: "destructive",
+      });
+    }
+  });
+  
+  // Função para abrir o modal de edição
+  const handleCellClick = (timeSlot: TimeSlot, weekday: string, activity?: any) => {
+    setSelectedTimeSlot(timeSlot);
+    setSelectedWeekday(weekday as WeekDay);
+    setSelectedActivity(activity);
+    setIsNewActivity(!activity);
+    setIsModalOpen(true);
+  };
+  
+  // Função para salvar a atividade
+  const handleSaveActivity = (data: ScheduleFormValues) => {
+    saveSchedule(data);
+  };
+  
   // Verificar se está carregando
   const isLoading = timeSlotsLoading || activityTypesLoading || 
                     weekdayQueries.some(query => query.isLoading);
   
   // Função para renderizar uma célula da grade
-  const renderCell = (cell: ScheduleCell) => {
+  const renderCell = (cell: ScheduleCell, timeRange: string) => {
+    const [startTime, endTime] = timeRange.split('-');
+    const timeSlot = { startTime, endTime };
+    
     if (!cell.activity) {
-      return <div className="h-full"></div>;
+      return (
+        <div 
+          className="h-full w-full p-2 hover:bg-gray-100 cursor-pointer"
+          onClick={() => handleCellClick(timeSlot, cell.weekday)}
+        ></div>
+      );
     }
     
     const activityCode = cell.activity.code;
     const colors = getActivityColor(activityCode);
     
     return (
-      <div className={`h-full p-2 ${colors.bg} rounded`}>
+      <div 
+        className={`h-full p-2 ${colors.bg} ${colors.hoverBg} rounded cursor-pointer`}
+        onClick={() => handleCellClick(timeSlot, cell.weekday, {
+          atividade: cell.activity?.code,
+          local: cell.activity?.location,
+          observacoes: cell.activity?.notes
+        })}
+      >
         <div className="text-sm font-medium">{cell.activity.name}</div>
         {cell.activity.location && (
           <div className="text-xs mt-1 opacity-75">{cell.activity.location}</div>
@@ -265,7 +343,7 @@ export function WeeklyProfessorSchedule({ professional }: WeeklyProfessorSchedul
                       </td>
                       {cells.map((cell, idx) => (
                         <td key={`${timeRange}-${cell.weekday}`} className="p-0.5 border h-12">
-                          {renderCell(cell)}
+                          {renderCell(cell, timeRange)}
                         </td>
                       ))}
                     </tr>
@@ -275,6 +353,24 @@ export function WeeklyProfessorSchedule({ professional }: WeeklyProfessorSchedul
           </table>
         </div>
       </CardContent>
+      
+      {/* Modal de edição */}
+      {isModalOpen && selectedTimeSlot && (
+        <EditScheduleModal 
+          isOpen={isModalOpen}
+          onClose={() => setIsModalOpen(false)}
+          onSave={handleSaveActivity}
+          professional={{
+            id: professional.id,
+            nome: professional.name,
+            iniciais: professional.initials
+          }}
+          timeSlot={selectedTimeSlot}
+          currentActivity={selectedActivity}
+          weekday={selectedWeekday}
+          isNew={isNewActivity}
+        />
+      )}
     </Card>
   );
 }

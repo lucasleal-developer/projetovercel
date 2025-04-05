@@ -1,5 +1,5 @@
 import { Link, useLocation } from "wouter";
-import { Calendar, Settings, User } from "lucide-react";
+import { Calendar, Settings, User, CalendarRange } from "lucide-react";
 import { useEffect, useState } from "react";
 
 export function Header() {
@@ -31,6 +31,15 @@ export function Header() {
                 Escalas
               </div>
             </Link>
+            {/* Link para visualização semanal */}
+            {!isSharedLink && (
+              <Link href="/professor-semanal">
+                <div className={`flex items-center text-sm font-medium ${location === '/professor-semanal' ? 'text-primary' : 'text-gray-600 hover:text-primary'} cursor-pointer`}>
+                  <CalendarRange className="mr-2 h-4 w-4" />
+                  Visualizar Semanal
+                </div>
+              </Link>
+            )}
             {/* Mostrar o link de configurações apenas se não for um link compartilhado */}
             {!isSharedLink && (
               <Link href="/settings">
