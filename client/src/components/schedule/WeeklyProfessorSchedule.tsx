@@ -196,7 +196,7 @@ export function WeeklyProfessorSchedule({ professional }: WeeklyProfessorSchedul
       
       setWeeklyData(weeklyScheduleData);
     }
-  }, [professional, timeSlots, activityTypes, weekdayQueries, timeSlotsLoading]);
+  }, [professional, timeSlots, weekdayQueries, timeSlotsLoading]); // Removido activityTypes da dependência
   
   // Mutação para salvar/atualizar atividade
   const { mutate: saveSchedule, isPending: isSaving } = useMutation({
@@ -217,10 +217,12 @@ export function WeeklyProfessorSchedule({ professional }: WeeklyProfessorSchedul
         variant: "default",
       });
       
-      // Atualiza a lista de escalas para todos os dias da semana
-      weekdays.forEach(day => {
-        queryClient.invalidateQueries({ queryKey: [`/api/schedules/${day}`] });
-      });
+      // Atualiza a lista de escalas para todos os dias da semana após um breve atraso
+      setTimeout(() => {
+        weekdays.forEach(day => {
+          queryClient.invalidateQueries({ queryKey: [`/api/schedules/${day}`] });
+        });
+      }, 300);
       
       // Fechar o modal
       setIsModalOpen(false);
