@@ -128,6 +128,10 @@ export function ScheduleActions({
     if (index === -1) {
       // Adicionar
       setSelectedProfessionals([...selectedProfessionals, professional]);
+      // Limpar o campo de busca após selecionar um profissional
+      setSearchQuery('');
+      // Fechar a lista de sugestões
+      setIsSearchOpen(false);
     } else {
       // Remover
       const updated = [...selectedProfessionals];
