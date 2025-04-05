@@ -84,50 +84,53 @@ export function ProfessorSemanal() {
           </div>
         </div>
         
-        {/* Seleção de professor */}
-        <div className="grid gap-4 md:grid-cols-[300px_1fr]">
-          <Card>
-            <CardContent className="p-4">
-              <div className="flex flex-col space-y-4">
-                <div>
-                  <h2 className="text-xl font-semibold mb-2 flex items-center">
-                    <Users className="mr-2 h-5 w-5" />
-                    Selecionar Professor
-                  </h2>
+        {/* Layout responsivo */}
+        <div className="grid gap-4 grid-cols-1 md:grid-cols-[300px_1fr]">
+          {/* Seletor de professor (ocupa toda a largura em dispositivos móveis) */}
+          <div className="order-1 md:order-1">
+            <Card>
+              <CardContent className="p-4">
+                <div className="flex flex-col space-y-4">
+                  <div>
+                    <h2 className="text-xl font-semibold mb-2 flex items-center">
+                      <Users className="mr-2 h-5 w-5" />
+                      Selecionar Professor
+                    </h2>
+                    
+                    {professionalsLoading ? (
+                      <LoadingSpinner />
+                    ) : (
+                      <ProfessionalSelector 
+                        professionals={professionals || []}
+                        onSelect={handleSelectProfessional}
+                        selectedProfessional={selectedProfessional}
+                      />
+                    )}
+                  </div>
                   
-                  {professionalsLoading ? (
-                    <LoadingSpinner />
-                  ) : (
-                    <ProfessionalSelector 
-                      professionals={professionals || []}
-                      onSelect={handleSelectProfessional}
-                      selectedProfessional={selectedProfessional}
-                    />
+                  {selectedProfessional && (
+                    <div className="mt-4 p-3 bg-blue-50 rounded-md border border-blue-100">
+                      <h3 className="font-medium text-blue-700 flex items-center">
+                        <Users className="mr-2 h-4 w-4" />
+                        Professor Selecionado
+                      </h3>
+                      <div className="mt-2 flex items-center">
+                        <div className="h-8 w-8 rounded-full bg-primary-100 flex items-center justify-center mr-2">
+                          <span className="text-primary-700 font-medium text-xs">
+                            {selectedProfessional.initials}
+                          </span>
+                        </div>
+                        <span className="font-medium">{selectedProfessional.name}</span>
+                      </div>
+                    </div>
                   )}
                 </div>
-                
-                {selectedProfessional && (
-                  <div className="mt-4 p-3 bg-blue-50 rounded-md border border-blue-100">
-                    <h3 className="font-medium text-blue-700 flex items-center">
-                      <Users className="mr-2 h-4 w-4" />
-                      Professor Selecionado
-                    </h3>
-                    <div className="mt-2 flex items-center">
-                      <div className="h-8 w-8 rounded-full bg-primary-100 flex items-center justify-center mr-2">
-                        <span className="text-primary-700 font-medium text-xs">
-                          {selectedProfessional.initials}
-                        </span>
-                      </div>
-                      <span className="font-medium">{selectedProfessional.name}</span>
-                    </div>
-                  </div>
-                )}
-              </div>
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
+          </div>
           
-          {/* Área principal com a grade semanal */}
-          <div>
+          {/* Área principal com a grade semanal (ocupa toda a largura em dispositivos móveis) */}
+          <div className="order-2 md:order-2 overflow-hidden">
             {selectedProfessional ? (
               <WeeklyProfessorSchedule professional={selectedProfessional} />
             ) : (

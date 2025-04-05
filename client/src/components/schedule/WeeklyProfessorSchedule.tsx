@@ -8,6 +8,7 @@ import { scheduleFormSchema, type ScheduleFormValues, type WeekDay } from "@shar
 import { apiRequest } from "@/lib/queryClient";
 import { EditScheduleModal } from "@/components/schedule/EditScheduleModal";
 import { useToast } from "@/hooks/use-toast";
+import { AlertCircle } from "lucide-react";
 
 // Componente de loading spinner
 function LoadingSpinner({ size = "md", className = "" }: { size?: "sm" | "md" | "lg", className?: string }) {
@@ -279,7 +280,7 @@ export function WeeklyProfessorSchedule({ professional }: WeeklyProfessorSchedul
     
     return (
       <div 
-        className="h-full p-2 hover:bg-opacity-30 rounded cursor-pointer"
+        className="h-full p-1 md:p-2 hover:bg-opacity-30 rounded cursor-pointer"
         style={style}
         onClick={() => handleCellClick(timeSlot, cell.weekday, {
           id: cell.activity?.id, // Usar o ID da atividade da célula, não do tipo de atividade
@@ -288,16 +289,37 @@ export function WeeklyProfessorSchedule({ professional }: WeeklyProfessorSchedul
           observacoes: cell.activity?.notes
         })}
       >
-        <div className="text-sm font-medium">{cell.activity.name}</div>
+        <div className="text-xs md:text-sm font-medium truncate">{cell.activity.name}</div>
         {cell.activity.location && (
-          <div className="text-xs mt-1 opacity-75">{cell.activity.location}</div>
+          <div className="hidden md:block text-xs mt-1 opacity-75 truncate">{cell.activity.location}</div>
         )}
       </div>
     );
   };
   
+  // Estado para acompanhar se a visualização é móvel ou não
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+  
+  // Atualizar o estado quando a janela for redimensionada
+  useEffect(() => {
+    const handleResize = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+    
+    window.addEventListener('resize', handleResize);
+    
+    // Limpeza
+    return () => {
+      window.removeEventListener('resize', handleResize);
+    };
+  }, []);
+
   // Formatar hora para exibição
   const formatTime = (time: string) => {
+    // Em dispositivos móveis, remover os minutos quando forem zero
+    if (isMobile && time.endsWith(':00')) {
+      return time.replace(':00', 'h');
+    }
     return time.replace(/:(\d+)$/, "h$1");
   };
   
@@ -324,16 +346,24 @@ export function WeeklyProfessorSchedule({ professional }: WeeklyProfessorSchedul
           <span>Grade Semanal de {professional.name}</span>
         </CardTitle>
       </CardHeader>
-      <CardContent className="p-0 overflow-x-auto">
+      <CardContent className="p-0 overflow-hidden">
+        {/* Mensagem para dispositivos móveis */}
+        <div className="md:hidden p-4 bg-yellow-50 border-b border-yellow-100">
+          <div className="flex items-center text-yellow-800">
+            <AlertCircle className="h-4 w-4 mr-2" />
+            <p className="text-sm">Para melhor visualização da grade completa, use um dispositivo com tela maior ou gire o celular.</p>
+          </div>
+        </div>
+        
         <div className="min-w-max relative">
           {/* Tabela única com cabeçalho fixo */}
-          <div className="overflow-auto max-h-[calc(100vh-280px)]">
-            <table className="w-full border-collapse">
+          <div className="overflow-auto max-h-[calc(100vh-280px)] md:max-h-[calc(100vh-300px)] lg:max-h-[calc(100vh-250px)]">
+            <table className="w-full border-collapse table-fixed">
               <thead className="bg-gray-50 sticky top-0 z-50">
                 <tr>
-                  <th className="p-3 border text-left font-medium text-sm sticky left-0 z-40 bg-gray-50 w-[120px]">Horário</th>
+                  <th className="p-2 md:p-3 border text-left font-medium text-sm sticky left-0 z-40 bg-gray-50 w-[90px] md:w-[120px]">Horário</th>
                   {weekdays.map(day => (
-                    <th key={day} className="p-3 border text-center font-medium text-sm w-[140px]">
+                    <th key={day} className="p-2 md:p-3 border text-center font-medium text-sm w-[100px] md:w-[140px]">
                       {weekdayNames[day]}
                     </th>
                   ))}
@@ -351,11 +381,11 @@ export function WeeklyProfessorSchedule({ professional }: WeeklyProfessorSchedul
                     
                     return (
                       <tr key={timeRange} className="border-b hover:bg-gray-50">
-                        <td className="p-2 border font-medium text-sm sticky left-0 z-20 bg-white w-[120px]">
+                        <td className="p-2 border font-medium text-sm sticky left-0 z-20 bg-white w-[90px] md:w-[120px]">
                           {formatTime(startTime)} - {formatTime(endTime)}
                         </td>
                         {cells.map((cell, idx) => (
-                          <td key={`${timeRange}-${cell.weekday}`} className="p-0.5 border h-12 w-[140px]">
+                          <td key={`${timeRange}-${cell.weekday}`} className="p-0.5 border h-12 w-[100px] md:w-[140px]">
                             {renderCell(cell, timeRange)}
                           </td>
                         ))}
