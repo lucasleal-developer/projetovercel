@@ -84,53 +84,57 @@ export function ProfessorSemanal() {
           </div>
         </div>
         
-        {/* Layout responsivo */}
-        <div className="grid gap-4 grid-cols-1 md:grid-cols-[300px_1fr]">
-          {/* Seletor de professor (ocupa toda a largura em dispositivos móveis) */}
-          <div className="order-1 md:order-1">
+        {/* Layout empilhado com seletor acima da grade */}
+        <div className="flex flex-col space-y-4">
+          {/* Seletor de professor (ocupa toda a largura - um componente acima do outro) */}
+          <div>
             <Card>
               <CardContent className="p-4">
                 <div className="flex flex-col space-y-4">
-                  <div>
-                    <h2 className="text-xl font-semibold mb-2 flex items-center">
-                      <Users className="mr-2 h-5 w-5" />
-                      Selecionar Professor
-                    </h2>
+                  <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                    <div>
+                      <h2 className="text-xl font-semibold mb-2 flex items-center">
+                        <Users className="mr-2 h-5 w-5" />
+                        Selecionar Professor
+                      </h2>
+                      
+                      {professionalsLoading ? (
+                        <LoadingSpinner />
+                      ) : (
+                        <div className="w-full md:w-64">
+                          <ProfessionalSelector 
+                            professionals={professionals || []}
+                            onSelect={handleSelectProfessional}
+                            selectedProfessional={selectedProfessional}
+                          />
+                        </div>
+                      )}
+                    </div>
                     
-                    {professionalsLoading ? (
-                      <LoadingSpinner />
-                    ) : (
-                      <ProfessionalSelector 
-                        professionals={professionals || []}
-                        onSelect={handleSelectProfessional}
-                        selectedProfessional={selectedProfessional}
-                      />
+                    {selectedProfessional && (
+                      <div className="p-3 bg-blue-50 rounded-md border border-blue-100 w-full md:w-auto">
+                        <h3 className="font-medium text-blue-700 flex items-center">
+                          <Users className="mr-2 h-4 w-4" />
+                          Professor Selecionado
+                        </h3>
+                        <div className="mt-2 flex items-center">
+                          <div className="h-8 w-8 rounded-full bg-primary-100 flex items-center justify-center mr-2">
+                            <span className="text-primary-700 font-medium text-xs">
+                              {selectedProfessional.initials}
+                            </span>
+                          </div>
+                          <span className="font-medium">{selectedProfessional.name}</span>
+                        </div>
+                      </div>
                     )}
                   </div>
-                  
-                  {selectedProfessional && (
-                    <div className="mt-4 p-3 bg-blue-50 rounded-md border border-blue-100">
-                      <h3 className="font-medium text-blue-700 flex items-center">
-                        <Users className="mr-2 h-4 w-4" />
-                        Professor Selecionado
-                      </h3>
-                      <div className="mt-2 flex items-center">
-                        <div className="h-8 w-8 rounded-full bg-primary-100 flex items-center justify-center mr-2">
-                          <span className="text-primary-700 font-medium text-xs">
-                            {selectedProfessional.initials}
-                          </span>
-                        </div>
-                        <span className="font-medium">{selectedProfessional.name}</span>
-                      </div>
-                    </div>
-                  )}
                 </div>
               </CardContent>
             </Card>
           </div>
           
-          {/* Área principal com a grade semanal (ocupa toda a largura em dispositivos móveis) */}
-          <div className="order-2 md:order-2 overflow-hidden">
+          {/* Área principal com a grade semanal (um componente abaixo do outro) */}
+          <div className="overflow-hidden">
             {selectedProfessional ? (
               <WeeklyProfessorSchedule professional={selectedProfessional} />
             ) : (
