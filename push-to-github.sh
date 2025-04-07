@@ -22,7 +22,7 @@ if git diff-index --quiet HEAD --; then
   echo "Não há mudanças para fazer commit"
 else
   echo "Fazendo commit das mudanças..."
-  git commit -m "Correção do deploy no Vercel: ajustes nos arquivos estáticos e nova API de status"
+  git commit -m "Melhorias para deploy no Vercel: rotas API otimizadas e diagnóstico aprimorado"
 fi
 
 # Tentando fazer push
