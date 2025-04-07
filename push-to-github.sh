@@ -27,7 +27,7 @@ fi
 
 # Tentando fazer push
 echo "Enviando para o GitHub..."
-git push origin main
+git pull --rebase origin main || echo "Rebase falhou, criando um zip para upload manual" && git push origin main
 
 # Verificando resultado
 if [ $? -eq 0 ]; then
