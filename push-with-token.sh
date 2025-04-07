@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Configurações de usuário para o commit
-git config --global user.name "Lucas Leal Developer"
+git config --global user.name "lucasleal-developer"
 git config --global user.email "lucasleal.developer@gmail.com"
 
 # Verificar status atual
@@ -13,7 +13,7 @@ git add -A
 git status
 
 # Criar mensagem de commit
-COMMIT_MSG="Melhorias para deploy no Vercel: rotas API otimizadas e diagnóstico aprimorado"
+COMMIT_MSG="Atualização: $(date +%d-%m-%Y)"
 
 # Fazer commit (se houver alterações)
 if git diff-index --quiet HEAD --; then
