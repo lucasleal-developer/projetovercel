@@ -30,13 +30,19 @@ fi
 echo "Enviando para o GitHub..."
 git pull --rebase origin main && git push origin main
 
-# Verificando resultado
-if [ $? -eq 0 ]; then
+# Verificando resultado do push
+PUSH_RESULT=$?
+if [ $PUSH_RESULT -eq 0 ]; then
   echo "Push concluído com sucesso!"
+  
+  # Acionar deploy no Vercel após o push bem-sucedido
+  echo -e "\n===== Acionando deploy no Vercel ====="
+  ./deploy-to-vercel.sh
 else
   echo "Erro ao fazer push. Verifique as credenciais ou use o script push-with-token.sh."
   echo "O push com --force não foi realizado por questões de segurança."
   echo "Por favor, resolva o conflito ou use um token para autenticação."
+  echo "O deploy no Vercel não será acionado devido ao erro no push."
 fi
 
 echo "Script concluído!"
