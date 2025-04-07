@@ -1,0 +1,1358 @@
+var __defProp = Object.defineProperty;
+var __export = (target, all) => {
+  for (var name in all)
+    __defProp(target, name, { get: all[name], enumerable: true });
+};
+
+// server/index.ts
+import express3 from "express";
+
+// server/routes.ts
+import express2 from "express";
+import { createServer } from "http";
+
+// shared/schema.ts
+var schema_exports = {};
+__export(schema_exports, {
+  activityTypeSchema: () => activityTypeSchema,
+  activityTypeTable: () => activityTypeTable,
+  activityTypes: () => activityTypes,
+  defaultActivityTypes: () => defaultActivityTypes,
+  insertActivityTypeSchema: () => insertActivityTypeSchema,
+  insertProfessionalSchema: () => insertProfessionalSchema,
+  insertScheduleSchema: () => insertScheduleSchema,
+  insertTimeSlotSchema: () => insertTimeSlotSchema,
+  insertUserSchema: () => insertUserSchema,
+  professionals: () => professionals,
+  scheduleFormSchema: () => scheduleFormSchema,
+  schedules: () => schedules,
+  timeSlotSchema: () => timeSlotSchema,
+  timeSlots: () => timeSlots,
+  users: () => users,
+  weekdays: () => weekdays
+});
+import { pgTable, text, serial, integer, timestamp } from "drizzle-orm/pg-core";
+import { createInsertSchema } from "drizzle-zod";
+import { z } from "zod";
+var users = pgTable("users", {
+  id: serial("id").primaryKey(),
+  username: text("username").notNull().unique(),
+  password: text("password").notNull()
+});
+var insertUserSchema = createInsertSchema(users).pick({
+  username: true,
+  password: true
+});
+var weekdays = [
+  "segunda",
+  "terca",
+  "quarta",
+  "quinta",
+  "sexta",
+  "sabado",
+  "domingo"
+];
+var defaultActivityTypes = [
+  { code: "aula", name: "Aula", color: "#3b82f6" },
+  { code: "reuniao", name: "Reuni\xE3o", color: "#8b5cf6" },
+  { code: "plantao", name: "Plant\xE3o", color: "#22c55e" },
+  { code: "estudo", name: "Estudo", color: "#eab308" },
+  { code: "evento", name: "Evento", color: "#ef4444" },
+  { code: "ferias", name: "F\xE9rias", color: "#06b6d4" },
+  { code: "licenca", name: "Licen\xE7a", color: "#64748b" },
+  { code: "disponivel_horario", name: "Indispon\xEDvel", color: "#6b7280" }
+];
+var activityTypes = ["aula", "reuniao", "plantao", "estudo", "evento", "ferias", "licenca", "disponivel_horario"];
+var activityTypeTable = pgTable("activity_types", {
+  id: serial("id").primaryKey(),
+  code: text("code").notNull().unique(),
+  name: text("name").notNull(),
+  color: text("color").notNull()
+});
+var insertActivityTypeSchema = createInsertSchema(activityTypeTable).pick({
+  code: true,
+  name: true,
+  color: true
+});
+var professionals = pgTable("professionals", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull(),
+  initials: text("initials").notNull(),
+  active: integer("active").notNull().default(1)
+});
+var insertProfessionalSchema = createInsertSchema(professionals).pick({
+  name: true,
+  initials: true,
+  active: true
+});
+var timeSlots = pgTable("time_slots", {
+  id: serial("id").primaryKey(),
+  startTime: text("start_time").notNull(),
+  endTime: text("end_time").notNull(),
+  interval: integer("interval").notNull().default(30),
+  // Intervalo em minutos (padrão: 30 min)
+  isBaseSlot: integer("is_base_slot").notNull().default(1)
+  // 1 = slots base para a grade, 0 = slots personalizados
+});
+var insertTimeSlotSchema = createInsertSchema(timeSlots).pick({
+  startTime: true,
+  endTime: true,
+  interval: true,
+  isBaseSlot: true
+});
+var schedules = pgTable("schedules", {
+  id: serial("id").primaryKey(),
+  professionalId: integer("professional_id").notNull(),
+  weekday: text("weekday").notNull(),
+  startTime: text("start_time").notNull(),
+  endTime: text("end_time").notNull(),
+  activityCode: text("activity_code").notNull(),
+  // código do tipo de atividade (relacionado à tabela activity_types)
+  location: text("location"),
+  notes: text("notes"),
+  updatedAt: timestamp("updated_at").defaultNow()
+});
+var insertScheduleSchema = createInsertSchema(schedules).pick({
+  professionalId: true,
+  weekday: true,
+  startTime: true,
+  endTime: true,
+  activityCode: true,
+  location: true,
+  notes: true
+});
+var scheduleFormSchema = z.object({
+  professionalId: z.number(),
+  weekday: z.string(),
+  startTime: z.string(),
+  endTime: z.string(),
+  activityCode: z.string(),
+  location: z.string().optional(),
+  notes: z.string().optional()
+});
+var timeSlotSchema = z.object({
+  startTime: z.string(),
+  endTime: z.string(),
+  interval: z.number().default(30),
+  isBaseSlot: z.number().default(1)
+});
+var activityTypeSchema = z.object({
+  code: z.string().min(1, "C\xF3digo da atividade \xE9 obrigat\xF3rio"),
+  name: z.string().min(1, "Nome da atividade \xE9 obrigat\xF3rio"),
+  color: z.string().regex(/^#([0-9A-F]{6})$/i, "Cor deve estar no formato hexadecimal (#RRGGBB)")
+});
+
+// server/storage.ts
+import { drizzle as drizzle2 } from "drizzle-orm/node-postgres";
+import { eq } from "drizzle-orm";
+import pg from "pg";
+
+// server/db.ts
+import { Pool, neonConfig } from "@neondatabase/serverless";
+import { drizzle } from "drizzle-orm/neon-serverless";
+import ws from "ws";
+neonConfig.webSocketConstructor = ws;
+if (!process.env.DATABASE_URL) {
+  throw new Error(
+    "DATABASE_URL must be set. Did you forget to provision a database?"
+  );
+}
+var pool = new Pool({ connectionString: process.env.DATABASE_URL });
+var db = drizzle({ client: pool, schema: schema_exports });
+
+// server/vite.ts
+import express from "express";
+import fs from "fs";
+import path2 from "path";
+import { createServer as createViteServer, createLogger } from "vite";
+
+// vite.config.ts
+import { defineConfig } from "vite";
+import react from "@vitejs/plugin-react";
+import themePlugin from "@replit/vite-plugin-shadcn-theme-json";
+import path from "path";
+import runtimeErrorOverlay from "@replit/vite-plugin-runtime-error-modal";
+var vite_config_default = defineConfig({
+  plugins: [
+    react(),
+    runtimeErrorOverlay(),
+    themePlugin(),
+    ...process.env.NODE_ENV !== "production" && process.env.REPL_ID !== void 0 ? [
+      await import("@replit/vite-plugin-cartographer").then(
+        (m) => m.cartographer()
+      )
+    ] : []
+  ],
+  resolve: {
+    alias: {
+      "@": path.resolve(import.meta.dirname, "client", "src"),
+      "@shared": path.resolve(import.meta.dirname, "shared"),
+      "@assets": path.resolve(import.meta.dirname, "attached_assets")
+    }
+  },
+  root: path.resolve(import.meta.dirname, "client"),
+  build: {
+    outDir: path.resolve(import.meta.dirname, "dist/public"),
+    emptyOutDir: true
+  }
+});
+
+// server/vite.ts
+import { nanoid } from "nanoid";
+var viteLogger = createLogger();
+function log(message, source = "express") {
+  const formattedTime = (/* @__PURE__ */ new Date()).toLocaleTimeString("en-US", {
+    hour: "numeric",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: true
+  });
+  console.log(`${formattedTime} [${source}] ${message}`);
+}
+async function setupVite(app2, server) {
+  const serverOptions = {
+    middlewareMode: true,
+    hmr: { server },
+    allowedHosts: true
+  };
+  const vite = await createViteServer({
+    ...vite_config_default,
+    configFile: false,
+    customLogger: {
+      ...viteLogger,
+      error: (msg, options) => {
+        viteLogger.error(msg, options);
+        process.exit(1);
+      }
+    },
+    server: serverOptions,
+    appType: "custom"
+  });
+  app2.use(vite.middlewares);
+  app2.use("*", async (req, res, next) => {
+    const url = req.originalUrl;
+    try {
+      const clientTemplate = path2.resolve(
+        import.meta.dirname,
+        "..",
+        "client",
+        "index.html"
+      );
+      let template = await fs.promises.readFile(clientTemplate, "utf-8");
+      template = template.replace(
+        `src="/src/main.tsx"`,
+        `src="/src/main.tsx?v=${nanoid()}"`
+      );
+      const page = await vite.transformIndexHtml(url, template);
+      res.status(200).set({ "Content-Type": "text/html" }).end(page);
+    } catch (e) {
+      vite.ssrFixStacktrace(e);
+      next(e);
+    }
+  });
+}
+function serveStatic(app2) {
+  const distPath = path2.resolve(import.meta.dirname, "public");
+  if (!fs.existsSync(distPath)) {
+    throw new Error(
+      `Could not find the build directory: ${distPath}, make sure to build the client first`
+    );
+  }
+  app2.use(express.static(distPath));
+  app2.use("*", (_req, res) => {
+    res.sendFile(path2.resolve(distPath, "index.html"));
+  });
+}
+
+// server/neonStorage.ts
+var NeonStorage = class {
+  constructor() {
+  }
+  // Usuários
+  async getUser(id) {
+    try {
+      const result = await pool.query(
+        "SELECT * FROM users WHERE id = $1",
+        [id]
+      );
+      if (result.rows.length === 0) return void 0;
+      return result.rows[0];
+    } catch (error) {
+      console.error("Erro ao buscar usu\xE1rio:", error);
+      return void 0;
+    }
+  }
+  async getUserByUsername(username) {
+    try {
+      const result = await pool.query(
+        "SELECT * FROM users WHERE username = $1",
+        [username]
+      );
+      if (result.rows.length === 0) return void 0;
+      return result.rows[0];
+    } catch (error) {
+      console.error("Erro ao buscar usu\xE1rio por nome de usu\xE1rio:", error);
+      return void 0;
+    }
+  }
+  async createUser(user) {
+    try {
+      const result = await pool.query(
+        "INSERT INTO users (username, password) VALUES ($1, $2) RETURNING *",
+        [user.username, user.password]
+      );
+      return result.rows[0];
+    } catch (error) {
+      console.error("Erro ao criar usu\xE1rio:", error);
+      throw new Error(`Erro ao criar usu\xE1rio: ${error}`);
+    }
+  }
+  // Profissionais
+  async getAllProfessionals() {
+    try {
+      const result = await pool.query(
+        "SELECT * FROM professionals ORDER BY name"
+      );
+      return result.rows;
+    } catch (error) {
+      console.error("Erro ao buscar profissionais:", error);
+      throw new Error(`Erro ao buscar profissionais: ${error}`);
+    }
+  }
+  async getProfessional(id) {
+    try {
+      const result = await pool.query(
+        "SELECT * FROM professionals WHERE id = $1",
+        [id]
+      );
+      if (result.rows.length === 0) return void 0;
+      return result.rows[0];
+    } catch (error) {
+      console.error("Erro ao buscar profissional:", error);
+      return void 0;
+    }
+  }
+  async createProfessional(professional) {
+    try {
+      const result = await pool.query(
+        "INSERT INTO professionals (name, initials, active) VALUES ($1, $2, $3) RETURNING *",
+        [professional.name, professional.initials, professional.active]
+      );
+      return result.rows[0];
+    } catch (error) {
+      console.error("Erro ao criar profissional:", error);
+      throw new Error(`Erro ao criar profissional: ${error}`);
+    }
+  }
+  async updateProfessional(id, data) {
+    try {
+      const currentProf = await this.getProfessional(id);
+      if (!currentProf) return void 0;
+      const updatedProf = { ...currentProf, ...data };
+      const result = await pool.query(
+        "UPDATE professionals SET name = $1, initials = $2, active = $3 WHERE id = $4 RETURNING *",
+        [updatedProf.name, updatedProf.initials, updatedProf.active, id]
+      );
+      return result.rows[0];
+    } catch (error) {
+      console.error("Erro ao atualizar profissional:", error);
+      return void 0;
+    }
+  }
+  async deleteProfessional(id) {
+    try {
+      const result = await pool.query(
+        "DELETE FROM professionals WHERE id = $1 RETURNING id",
+        [id]
+      );
+      return result.rows.length > 0;
+    } catch (error) {
+      console.error("Erro ao excluir profissional:", error);
+      return false;
+    }
+  }
+  // Tipos de Atividades
+  async getAllActivityTypes() {
+    try {
+      log("NeonStorage: Buscando todos os tipos de atividades");
+      const result = await pool.query(
+        "SELECT * FROM activity_types ORDER BY name"
+      );
+      return result.rows;
+    } catch (error) {
+      console.error("Erro ao buscar tipos de atividades:", error);
+      return [];
+    }
+  }
+  async getActivityType(id) {
+    try {
+      const result = await pool.query(
+        "SELECT * FROM activity_types WHERE id = $1",
+        [id]
+      );
+      if (result.rows.length === 0) return void 0;
+      return result.rows[0];
+    } catch (error) {
+      console.error("Erro ao buscar tipo de atividade:", error);
+      return void 0;
+    }
+  }
+  async getActivityTypeByCode(code) {
+    try {
+      const result = await pool.query(
+        "SELECT * FROM activity_types WHERE code = $1",
+        [code]
+      );
+      if (result.rows.length === 0) return void 0;
+      return result.rows[0];
+    } catch (error) {
+      console.error("Erro ao buscar tipo de atividade por c\xF3digo:", error);
+      return void 0;
+    }
+  }
+  async createActivityType(activityType) {
+    try {
+      const result = await pool.query(
+        "INSERT INTO activity_types (code, name, color) VALUES ($1, $2, $3) RETURNING *",
+        [activityType.code, activityType.name, activityType.color]
+      );
+      return result.rows[0];
+    } catch (error) {
+      console.error("Erro ao criar tipo de atividade:", error);
+      throw new Error(`Erro ao criar tipo de atividade: ${error}`);
+    }
+  }
+  async updateActivityType(id, data) {
+    try {
+      const currentActivityType = await this.getActivityType(id);
+      if (!currentActivityType) return void 0;
+      const updatedActivityType = { ...currentActivityType, ...data };
+      const result = await pool.query(
+        "UPDATE activity_types SET code = $1, name = $2, color = $3 WHERE id = $4 RETURNING *",
+        [updatedActivityType.code, updatedActivityType.name, updatedActivityType.color, id]
+      );
+      return result.rows[0];
+    } catch (error) {
+      console.error("Erro ao atualizar tipo de atividade:", error);
+      return void 0;
+    }
+  }
+  async deleteActivityType(id) {
+    try {
+      const result = await pool.query(
+        "DELETE FROM activity_types WHERE id = $1 RETURNING id",
+        [id]
+      );
+      return result.rows.length > 0;
+    } catch (error) {
+      console.error("Erro ao excluir tipo de atividade:", error);
+      return false;
+    }
+  }
+  // Horários
+  async getAllTimeSlots() {
+    try {
+      const result = await pool.query(
+        'SELECT id, start_time as "startTime", end_time as "endTime", interval, is_base_slot as "isBaseSlot" FROM time_slots ORDER BY start_time'
+      );
+      return result.rows;
+    } catch (error) {
+      console.error("Erro ao buscar slots de tempo:", error);
+      throw new Error(`Erro ao buscar hor\xE1rios: ${error}`);
+    }
+  }
+  async getBaseTimeSlots() {
+    try {
+      const result = await pool.query(
+        'SELECT id, start_time as "startTime", end_time as "endTime", interval, is_base_slot as "isBaseSlot" FROM time_slots WHERE is_base_slot = 1 ORDER BY start_time'
+      );
+      return result.rows;
+    } catch (error) {
+      console.error("Erro ao buscar slots de tempo base:", error);
+      throw new Error(`Erro ao buscar hor\xE1rios base: ${error}`);
+    }
+  }
+  async getTimeSlot(id) {
+    try {
+      const result = await pool.query(
+        'SELECT id, start_time as "startTime", end_time as "endTime", interval, is_base_slot as "isBaseSlot" FROM time_slots WHERE id = $1',
+        [id]
+      );
+      if (result.rows.length === 0) return void 0;
+      return result.rows[0];
+    } catch (error) {
+      console.error("Erro ao buscar slot de tempo:", error);
+      return void 0;
+    }
+  }
+  async createTimeSlot(timeSlot) {
+    try {
+      const result = await pool.query(
+        'INSERT INTO time_slots (start_time, end_time, interval, is_base_slot) VALUES ($1, $2, $3, $4) RETURNING id, start_time as "startTime", end_time as "endTime", interval, is_base_slot as "isBaseSlot"',
+        [timeSlot.startTime, timeSlot.endTime, timeSlot.interval, timeSlot.isBaseSlot]
+      );
+      return result.rows[0];
+    } catch (error) {
+      console.error("Erro ao criar slot de tempo:", error);
+      throw new Error(`Erro ao criar hor\xE1rio: ${error}`);
+    }
+  }
+  async deleteTimeSlot(id) {
+    try {
+      const result = await pool.query(
+        "DELETE FROM time_slots WHERE id = $1 RETURNING id",
+        [id]
+      );
+      return result.rows.length > 0;
+    } catch (error) {
+      console.error("Erro ao excluir slot de tempo:", error);
+      return false;
+    }
+  }
+  // Escalas
+  async getSchedulesByDay(weekday) {
+    try {
+      const result = await pool.query(
+        'SELECT id, professional_id as "professionalId", weekday, start_time as "startTime", end_time as "endTime", activity_code as "activityCode", location, notes, updated_at as "updatedAt" FROM schedules WHERE weekday = $1',
+        [weekday]
+      );
+      return result.rows;
+    } catch (error) {
+      console.error("Erro ao buscar escalas por dia:", error);
+      throw new Error(`Erro ao buscar escalas por dia: ${error}`);
+    }
+  }
+  async getSchedulesByProfessional(professionalId) {
+    try {
+      const result = await pool.query(
+        'SELECT id, professional_id as "professionalId", weekday, start_time as "startTime", end_time as "endTime", activity_code as "activityCode", location, notes, updated_at as "updatedAt" FROM schedules WHERE professional_id = $1',
+        [professionalId]
+      );
+      return result.rows;
+    } catch (error) {
+      console.error("Erro ao buscar escalas por profissional:", error);
+      throw new Error(`Erro ao buscar escalas por profissional: ${error}`);
+    }
+  }
+  async getSchedule(id) {
+    try {
+      const result = await pool.query(
+        'SELECT id, professional_id as "professionalId", weekday, start_time as "startTime", end_time as "endTime", activity_code as "activityCode", location, notes, updated_at as "updatedAt" FROM schedules WHERE id = $1',
+        [id]
+      );
+      if (result.rows.length === 0) return void 0;
+      return result.rows[0];
+    } catch (error) {
+      console.error("Erro ao buscar escala:", error);
+      return void 0;
+    }
+  }
+  async createSchedule(schedule) {
+    try {
+      const result = await pool.query(
+        'INSERT INTO schedules (professional_id, weekday, start_time, end_time, activity_code, location, notes) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id, professional_id as "professionalId", weekday, start_time as "startTime", end_time as "endTime", activity_code as "activityCode", location, notes, updated_at as "updatedAt"',
+        [
+          schedule.professionalId,
+          schedule.weekday,
+          schedule.startTime,
+          schedule.endTime,
+          schedule.activityCode,
+          schedule.location,
+          schedule.notes
+        ]
+      );
+      return result.rows[0];
+    } catch (error) {
+      console.error("Erro ao criar escala:", error);
+      throw new Error(`Erro ao criar escala: ${error}`);
+    }
+  }
+  async updateSchedule(id, data) {
+    try {
+      const currentSchedule = await this.getSchedule(id);
+      if (!currentSchedule) return void 0;
+      const updatedSchedule = { ...currentSchedule, ...data };
+      const result = await pool.query(
+        'UPDATE schedules SET professional_id = $1, weekday = $2, start_time = $3, end_time = $4, activity_code = $5, location = $6, notes = $7, updated_at = CURRENT_TIMESTAMP WHERE id = $8 RETURNING id, professional_id as "professionalId", weekday, start_time as "startTime", end_time as "endTime", activity_code as "activityCode", location, notes, updated_at as "updatedAt"',
+        [
+          updatedSchedule.professionalId,
+          updatedSchedule.weekday,
+          updatedSchedule.startTime,
+          updatedSchedule.endTime,
+          updatedSchedule.activityCode,
+          updatedSchedule.location,
+          updatedSchedule.notes,
+          id
+        ]
+      );
+      return result.rows[0];
+    } catch (error) {
+      console.error("Erro ao atualizar escala:", error);
+      return void 0;
+    }
+  }
+  async deleteSchedule(id) {
+    try {
+      const result = await pool.query(
+        "DELETE FROM schedules WHERE id = $1 RETURNING id",
+        [id]
+      );
+      return result.rows.length > 0;
+    } catch (error) {
+      console.error("Erro ao excluir escala:", error);
+      return false;
+    }
+  }
+};
+
+// server/storage.ts
+var { Pool: Pool2 } = pg;
+var MemStorage = class {
+  users;
+  professionals;
+  timeSlots;
+  schedules;
+  activityTypes;
+  userCurrentId;
+  professionalCurrentId;
+  timeSlotCurrentId;
+  scheduleCurrentId;
+  activityTypeCurrentId;
+  constructor() {
+    this.users = /* @__PURE__ */ new Map();
+    this.professionals = /* @__PURE__ */ new Map();
+    this.timeSlots = /* @__PURE__ */ new Map();
+    this.schedules = /* @__PURE__ */ new Map();
+    this.activityTypes = /* @__PURE__ */ new Map();
+    this.userCurrentId = 1;
+    this.professionalCurrentId = 1;
+    this.timeSlotCurrentId = 1;
+    this.scheduleCurrentId = 1;
+    this.activityTypeCurrentId = 1;
+    this.initializeData();
+  }
+  // Método adicional para a nova interface
+  async getActivityTypeByCode(code) {
+    return Array.from(this.activityTypes.values()).find(
+      (activityType) => activityType.code === code
+    );
+  }
+  // Método adicional para a nova interface
+  async getBaseTimeSlots() {
+    return Array.from(this.timeSlots.values()).filter(
+      (timeSlot) => timeSlot.isBaseSlot === 1
+    );
+  }
+  // Usuários
+  async getUser(id) {
+    return this.users.get(id);
+  }
+  async getUserByUsername(username) {
+    return Array.from(this.users.values()).find(
+      (user) => user.username === username
+    );
+  }
+  async createUser(insertUser) {
+    const id = this.userCurrentId++;
+    const user = { ...insertUser, id };
+    this.users.set(id, user);
+    return user;
+  }
+  // Profissionais
+  async getAllProfessionals() {
+    return Array.from(this.professionals.values());
+  }
+  async getProfessional(id) {
+    return this.professionals.get(id);
+  }
+  async createProfessional(insertProfessional) {
+    const id = this.professionalCurrentId++;
+    const professional = {
+      ...insertProfessional,
+      id,
+      // Garante que active está definido com valor padrão 1 se não for fornecido
+      active: insertProfessional.active ?? 1
+    };
+    this.professionals.set(id, professional);
+    return professional;
+  }
+  async updateProfessional(id, data) {
+    const professional = this.professionals.get(id);
+    if (!professional) return void 0;
+    const updatedProfessional = { ...professional, ...data };
+    this.professionals.set(id, updatedProfessional);
+    return updatedProfessional;
+  }
+  async deleteProfessional(id) {
+    return this.professionals.delete(id);
+  }
+  // Tipos de Atividades
+  async getAllActivityTypes() {
+    return Array.from(this.activityTypes.values());
+  }
+  async getActivityType(id) {
+    return this.activityTypes.get(id);
+  }
+  async createActivityType(data) {
+    const id = this.activityTypeCurrentId++;
+    const activityType = { ...data, id };
+    this.activityTypes.set(id, activityType);
+    return activityType;
+  }
+  async updateActivityType(id, data) {
+    const activityType = this.activityTypes.get(id);
+    if (!activityType) return void 0;
+    const updatedActivityType = { ...activityType, ...data };
+    this.activityTypes.set(id, updatedActivityType);
+    return updatedActivityType;
+  }
+  async deleteActivityType(id) {
+    return this.activityTypes.delete(id);
+  }
+  // Horários
+  async getAllTimeSlots() {
+    return Array.from(this.timeSlots.values());
+  }
+  async getTimeSlot(id) {
+    return this.timeSlots.get(id);
+  }
+  async createTimeSlot(insertTimeSlot) {
+    const id = this.timeSlotCurrentId++;
+    const timeSlot = {
+      ...insertTimeSlot,
+      id,
+      // Garante que interval está definido com valor padrão 30 se não for fornecido
+      interval: insertTimeSlot.interval ?? 30,
+      // Garante que isBaseSlot está definido com valor padrão 1 se não for fornecido
+      isBaseSlot: insertTimeSlot.isBaseSlot ?? 1
+    };
+    this.timeSlots.set(id, timeSlot);
+    return timeSlot;
+  }
+  async deleteTimeSlot(id) {
+    return this.timeSlots.delete(id);
+  }
+  // Escalas
+  async getSchedulesByDay(weekday) {
+    return Array.from(this.schedules.values()).filter(
+      (schedule) => schedule.weekday === weekday
+    );
+  }
+  async getSchedulesByProfessional(professionalId) {
+    return Array.from(this.schedules.values()).filter(
+      (schedule) => schedule.professionalId === professionalId
+    );
+  }
+  async getSchedule(id) {
+    return this.schedules.get(id);
+  }
+  async createSchedule(insertSchedule) {
+    const id = this.scheduleCurrentId++;
+    const now = /* @__PURE__ */ new Date();
+    const schedule = {
+      ...insertSchedule,
+      id,
+      updatedAt: now,
+      // Garante que location está definido como null se não for fornecido
+      location: insertSchedule.location ?? null,
+      // Garante que notes está definido como null se não for fornecido
+      notes: insertSchedule.notes ?? null
+    };
+    this.schedules.set(id, schedule);
+    return schedule;
+  }
+  async updateSchedule(id, data) {
+    const schedule = this.schedules.get(id);
+    if (!schedule) return void 0;
+    const now = /* @__PURE__ */ new Date();
+    const updatedSchedule = {
+      ...schedule,
+      ...data,
+      updatedAt: now
+    };
+    this.schedules.set(id, updatedSchedule);
+    return updatedSchedule;
+  }
+  async deleteSchedule(id) {
+    return this.schedules.delete(id);
+  }
+  // Inicializa dados de exemplo
+  initializeData() {
+    const professionals3 = [
+      { name: "Prof. Paulo", initials: "PP", active: 1 },
+      { name: "Profa. Ana Maria", initials: "AM", active: 1 },
+      { name: "Prof. Carlos", initials: "CL", active: 1 },
+      { name: "Prof. Jo\xE3o", initials: "JM", active: 1 },
+      { name: "Profa. Maria", initials: "MM", active: 1 }
+    ];
+    professionals3.forEach((p) => this.createProfessional(p));
+    const activityTypes2 = [
+      { name: "Aula", code: "aula", color: "#3b82f6" },
+      { name: "Reuni\xE3o", code: "reuniao", color: "#8b5cf6" },
+      { name: "Plant\xE3o", code: "plantao", color: "#22c55e" },
+      { name: "Estudo", code: "estudo", color: "#f59e0b" },
+      { name: "Evento", code: "evento", color: "#ef4444" },
+      { name: "F\xE9rias", code: "ferias", color: "#06b6d4" },
+      { name: "Licen\xE7a", code: "licenca", color: "#64748b" },
+      { name: "Indispon\xEDvel", code: "disponivel", color: "#6b7280" }
+    ];
+    activityTypes2.forEach((at) => this.createActivityType(at));
+    const timeSlots3 = [
+      { startTime: "08:00", endTime: "09:00" },
+      { startTime: "09:00", endTime: "10:00" },
+      { startTime: "10:00", endTime: "11:00" },
+      { startTime: "11:00", endTime: "12:00" },
+      { startTime: "13:00", endTime: "14:00" },
+      { startTime: "14:00", endTime: "15:00" },
+      { startTime: "15:00", endTime: "16:00" },
+      { startTime: "16:00", endTime: "17:00" },
+      { startTime: "08:00", endTime: "09:30" },
+      { startTime: "09:45", endTime: "11:15" },
+      { startTime: "13:30", endTime: "15:00" },
+      { startTime: "15:15", endTime: "16:45" }
+    ];
+    timeSlots3.forEach((ts) => this.createTimeSlot(ts));
+    const segundaSchedules = [
+      { professionalId: 1, weekday: "segunda", startTime: "08:00", endTime: "09:30", activityCode: "aula", location: "Sala 101", notes: "Matem\xE1tica" },
+      { professionalId: 2, weekday: "segunda", startTime: "08:00", endTime: "09:30", activityCode: "aula", location: "Sala 203", notes: "Portugu\xEAs" },
+      { professionalId: 3, weekday: "segunda", startTime: "08:00", endTime: "09:30", activityCode: "disponivel_horario", location: "", notes: "" },
+      { professionalId: 4, weekday: "segunda", startTime: "08:00", endTime: "09:30", activityCode: "estudo", location: "Biblioteca", notes: "Prepara\xE7\xE3o de aulas" },
+      { professionalId: 5, weekday: "segunda", startTime: "08:00", endTime: "09:30", activityCode: "plantao", location: "Sala Professores", notes: "Plant\xE3o de d\xFAvidas" },
+      { professionalId: 1, weekday: "segunda", startTime: "09:45", endTime: "11:15", activityCode: "reuniao", location: "Sala Reuni\xF5es", notes: "Reuni\xE3o pedag\xF3gica" },
+      { professionalId: 2, weekday: "segunda", startTime: "09:45", endTime: "11:15", activityCode: "aula", location: "Sala 203", notes: "Portugu\xEAs" },
+      { professionalId: 3, weekday: "segunda", startTime: "09:45", endTime: "11:15", activityCode: "reuniao", location: "Sala Reuni\xF5es", notes: "Reuni\xE3o pedag\xF3gica" },
+      { professionalId: 4, weekday: "segunda", startTime: "09:45", endTime: "11:15", activityCode: "aula", location: "Lab Qu\xEDmica", notes: "Qu\xEDmica" },
+      { professionalId: 5, weekday: "segunda", startTime: "09:45", endTime: "11:15", activityCode: "disponivel_horario", location: "", notes: "" },
+      { professionalId: 1, weekday: "segunda", startTime: "13:30", endTime: "15:00", activityCode: "aula", location: "Sala 101", notes: "Matem\xE1tica" },
+      { professionalId: 2, weekday: "segunda", startTime: "13:30", endTime: "15:00", activityCode: "licenca", location: "", notes: "Licen\xE7a m\xE9dica" },
+      { professionalId: 3, weekday: "segunda", startTime: "13:30", endTime: "15:00", activityCode: "aula", location: "Sala 201", notes: "Hist\xF3ria" },
+      { professionalId: 4, weekday: "segunda", startTime: "13:30", endTime: "15:00", activityCode: "estudo", location: "Biblioteca", notes: "Prepara\xE7\xE3o de provas" },
+      { professionalId: 5, weekday: "segunda", startTime: "13:30", endTime: "15:00", activityCode: "aula", location: "Sala 205", notes: "Ingl\xEAs" }
+    ];
+    segundaSchedules.forEach((s) => this.createSchedule(s));
+    const otherDaysSchedules = [
+      { professionalId: 1, weekday: "terca", startTime: "08:00", endTime: "09:30", activityCode: "aula", location: "Sala 102", notes: "Matem\xE1tica" },
+      { professionalId: 2, weekday: "terca", startTime: "08:00", endTime: "09:30", activityCode: "reuniao", location: "Sala Coordena\xE7\xE3o", notes: "Reuni\xE3o de departamento" },
+      { professionalId: 3, weekday: "terca", startTime: "08:00", endTime: "09:30", activityCode: "plantao", location: "Biblioteca", notes: "Plant\xE3o de d\xFAvidas" },
+      { professionalId: 1, weekday: "quarta", startTime: "13:30", endTime: "15:00", activityCode: "evento", location: "Audit\xF3rio", notes: "Feira de ci\xEAncias" },
+      { professionalId: 2, weekday: "quarta", startTime: "13:30", endTime: "15:00", activityCode: "plantao", location: "Sala 208", notes: "Plant\xE3o de d\xFAvidas" },
+      { professionalId: 4, weekday: "quarta", startTime: "13:30", endTime: "15:00", activityCode: "evento", location: "Audit\xF3rio", notes: "Feira de ci\xEAncias" }
+    ];
+    otherDaysSchedules.forEach((s) => this.createSchedule(s));
+  }
+};
+var storage;
+if (process.env.DATABASE_URL) {
+  console.log("Usando armazenamento Neon PostgreSQL");
+  storage = new NeonStorage();
+} else {
+  console.log("Usando armazenamento em mem\xF3ria (fallback)");
+  storage = new MemStorage();
+}
+
+// server/routes.ts
+import { z as z2 } from "zod";
+async function registerRoutes(app2) {
+  const apiRouter = express2.Router();
+  apiRouter.get("/professionals", async (req, res) => {
+    try {
+      const professionals3 = await storage.getAllProfessionals();
+      res.json(professionals3);
+    } catch (error) {
+      res.status(500).json({ message: "Erro ao buscar profissionais" });
+    }
+  });
+  apiRouter.post("/professionals", async (req, res) => {
+    try {
+      const data = insertProfessionalSchema.parse(req.body);
+      const professional = await storage.createProfessional(data);
+      res.status(201).json(professional);
+    } catch (error) {
+      if (error instanceof z2.ZodError) {
+        res.status(400).json({ message: "Dados inv\xE1lidos", errors: error.errors });
+      } else {
+        res.status(500).json({ message: "Erro ao criar profissional" });
+      }
+    }
+  });
+  apiRouter.put("/professionals/:id", async (req, res) => {
+    try {
+      const id = Number(req.params.id);
+      const data = insertProfessionalSchema.partial().parse(req.body);
+      const professional = await storage.updateProfessional(id, data);
+      if (!professional) {
+        return res.status(404).json({ message: "Profissional n\xE3o encontrado" });
+      }
+      res.json(professional);
+    } catch (error) {
+      if (error instanceof z2.ZodError) {
+        res.status(400).json({ message: "Dados inv\xE1lidos", errors: error.errors });
+      } else {
+        res.status(500).json({ message: "Erro ao atualizar profissional" });
+      }
+    }
+  });
+  apiRouter.delete("/professionals/:id", async (req, res) => {
+    try {
+      const id = Number(req.params.id);
+      const success = await storage.deleteProfessional(id);
+      if (!success) {
+        return res.status(404).json({ message: "Profissional n\xE3o encontrado" });
+      }
+      res.status(204).end();
+    } catch (error) {
+      res.status(500).json({ message: "Erro ao excluir profissional" });
+    }
+  });
+  apiRouter.get("/activity-types", async (req, res) => {
+    try {
+      console.log("Iniciando busca de tipos de atividades...");
+      const activityTypes2 = await storage.getAllActivityTypes();
+      console.log("Tipos de atividades encontrados:", activityTypes2 ? activityTypes2.length : 0);
+      res.json(activityTypes2 || []);
+    } catch (error) {
+      console.error("Erro ao buscar tipos de atividades:", error);
+      res.status(500).json({ message: "Erro ao buscar tipos de atividades" });
+    }
+  });
+  apiRouter.post("/activity-types", async (req, res) => {
+    try {
+      const data = req.body;
+      const activityType = await storage.createActivityType(data);
+      res.status(201).json(activityType);
+    } catch (error) {
+      res.status(500).json({ message: "Erro ao criar tipo de atividade" });
+    }
+  });
+  apiRouter.put("/activity-types/:id", async (req, res) => {
+    try {
+      const id = Number(req.params.id);
+      const data = req.body;
+      const activityType = await storage.updateActivityType(id, data);
+      if (!activityType) {
+        return res.status(404).json({ message: "Tipo de atividade n\xE3o encontrado" });
+      }
+      res.json(activityType);
+    } catch (error) {
+      res.status(500).json({ message: "Erro ao atualizar tipo de atividade" });
+    }
+  });
+  apiRouter.delete("/activity-types/:id", async (req, res) => {
+    try {
+      const id = Number(req.params.id);
+      const success = await storage.deleteActivityType(id);
+      if (!success) {
+        return res.status(404).json({ message: "Tipo de atividade n\xE3o encontrado" });
+      }
+      res.status(204).end();
+    } catch (error) {
+      res.status(500).json({ message: "Erro ao excluir tipo de atividade" });
+    }
+  });
+  apiRouter.get("/time-slots", async (req, res) => {
+    try {
+      const timeSlots3 = await storage.getAllTimeSlots();
+      res.json(timeSlots3);
+    } catch (error) {
+      res.status(500).json({ message: "Erro ao buscar hor\xE1rios" });
+    }
+  });
+  apiRouter.post("/time-slots", async (req, res) => {
+    try {
+      const data = insertTimeSlotSchema.parse(req.body);
+      const timeSlot = await storage.createTimeSlot(data);
+      res.status(201).json(timeSlot);
+    } catch (error) {
+      if (error instanceof z2.ZodError) {
+        res.status(400).json({ message: "Dados inv\xE1lidos", errors: error.errors });
+      } else {
+        res.status(500).json({ message: "Erro ao criar hor\xE1rio" });
+      }
+    }
+  });
+  apiRouter.delete("/time-slots/:id", async (req, res) => {
+    try {
+      const id = Number(req.params.id);
+      const success = await storage.deleteTimeSlot(id);
+      if (!success) {
+        return res.status(404).json({ message: "Hor\xE1rio n\xE3o encontrado" });
+      }
+      res.status(204).end();
+    } catch (error) {
+      res.status(500).json({ message: "Erro ao excluir hor\xE1rio" });
+    }
+  });
+  apiRouter.get("/schedules/:weekday", async (req, res) => {
+    try {
+      const weekday = req.params.weekday;
+      console.log(`GET /schedules/${weekday} - Buscando hor\xE1rios`);
+      if (!weekdays.includes(weekday)) {
+        return res.status(400).json({ message: "Dia da semana inv\xE1lido" });
+      }
+      const schedules3 = await storage.getSchedulesByDay(weekday);
+      console.log("Escalas encontradas:", schedules3.length);
+      const professionals3 = await storage.getAllProfessionals();
+      const formattedData = {
+        dia: weekday,
+        profissionais: professionals3.map((p) => {
+          const profSchedules = schedules3.filter((s) => s.professionalId === p.id);
+          return {
+            id: p.id,
+            nome: p.name,
+            iniciais: p.initials,
+            horarios: profSchedules.map((s) => ({
+              id: s.id,
+              hora: s.startTime,
+              horaFim: s.endTime,
+              atividade: s.activityCode,
+              local: s.location || "",
+              observacoes: s.notes || ""
+            }))
+          };
+        })
+      };
+      res.json(formattedData);
+    } catch (error) {
+      res.status(500).json({ message: "Erro ao buscar escalas" });
+    }
+  });
+  apiRouter.get("/schedules", async (req, res) => {
+    try {
+      const professionalId = req.query.professionalId ? Number(req.query.professionalId) : void 0;
+      if (!professionalId) {
+        return res.status(400).json({ message: "ID do profissional \xE9 obrigat\xF3rio" });
+      }
+      const schedules3 = await storage.getSchedulesByProfessional(professionalId);
+      res.json(schedules3);
+    } catch (error) {
+      res.status(500).json({ message: "Erro ao buscar escalas do profissional" });
+    }
+  });
+  apiRouter.post("/schedules", async (req, res) => {
+    try {
+      console.log("POST /schedules - Criando nova atividade com dados:", req.body);
+      const data = insertScheduleSchema.parse(req.body);
+      const weekday = data.weekday;
+      if (!weekdays.includes(weekday)) {
+        return res.status(400).json({ message: "Dia da semana inv\xE1lido" });
+      }
+      const existingSchedules = await storage.getSchedulesByDay(weekday);
+      const duplicateSchedule = existingSchedules.find(
+        (s) => s.professionalId === data.professionalId && s.startTime === data.startTime && s.endTime === data.endTime
+      );
+      if (duplicateSchedule) {
+        console.log("Encontrada escala existente com os mesmos dados:", duplicateSchedule);
+        console.log("Atualizando escala existente em vez de criar nova");
+        const updatedSchedule = await storage.updateSchedule(duplicateSchedule.id, data);
+        return res.status(200).json(updatedSchedule);
+      }
+      const schedule = await storage.createSchedule(data);
+      console.log("Nova escala criada:", schedule);
+      res.status(201).json(schedule);
+    } catch (error) {
+      console.error("Erro ao criar escala:", error);
+      if (error instanceof z2.ZodError) {
+        res.status(400).json({ message: "Dados inv\xE1lidos", errors: error.errors });
+      } else {
+        res.status(500).json({ message: "Erro ao criar escala" });
+      }
+    }
+  });
+  apiRouter.put("/schedules/:id", async (req, res) => {
+    try {
+      const id = Number(req.params.id);
+      console.log("PUT /schedules/:id - Recebendo requisi\xE7\xE3o para atualizar ID:", id, "Dados:", req.body);
+      const data = insertScheduleSchema.partial().parse(req.body);
+      const existingSchedule = await storage.getSchedule(id);
+      if (!existingSchedule) {
+        console.log(`Escala ID:${id} n\xE3o encontrada`);
+        return res.status(404).json({ message: "Escala n\xE3o encontrada" });
+      }
+      console.log("Escala existente encontrada:", existingSchedule);
+      const schedule = await storage.updateSchedule(id, data);
+      console.log("Escala atualizada:", schedule);
+      res.json(schedule);
+    } catch (error) {
+      console.error("Erro ao atualizar escala:", error);
+      if (error instanceof z2.ZodError) {
+        res.status(400).json({ message: "Dados inv\xE1lidos", errors: error.errors });
+      } else {
+        res.status(500).json({ message: "Erro ao atualizar escala" });
+      }
+    }
+  });
+  apiRouter.delete("/schedules/:id", async (req, res) => {
+    try {
+      const id = Number(req.params.id);
+      const success = await storage.deleteSchedule(id);
+      if (!success) {
+        return res.status(404).json({ message: "Escala n\xE3o encontrada" });
+      }
+      res.status(204).end();
+    } catch (error) {
+      res.status(500).json({ message: "Erro ao excluir escala" });
+    }
+  });
+  app2.use("/api", apiRouter);
+  const httpServer = createServer(app2);
+  return httpServer;
+}
+
+// server/neondb.ts
+async function testNeonConnection() {
+  try {
+    log("Testando conex\xE3o com o Neon PostgreSQL...");
+    const result = await pool.query("SELECT version()");
+    const versionInfo = result.rows[0].version;
+    log(`Conex\xE3o com o Neon PostgreSQL estabelecida com sucesso: ${versionInfo.split(",")[0]}`);
+    return true;
+  } catch (error) {
+    log(`Erro ao conectar com o Neon PostgreSQL: ${error}`);
+    return false;
+  }
+}
+async function createTablesIfNotExist() {
+  try {
+    log("Criando tabelas no Neon PostgreSQL se n\xE3o existirem...");
+    try {
+      await pool.query(`
+        CREATE TABLE IF NOT EXISTS users (
+          id SERIAL PRIMARY KEY,
+          username TEXT NOT NULL UNIQUE,
+          password TEXT NOT NULL
+        )
+      `);
+      log("Tabela users verificada/criada");
+      await pool.query(`
+        CREATE TABLE IF NOT EXISTS activity_types (
+          id SERIAL PRIMARY KEY,
+          code TEXT NOT NULL UNIQUE,
+          name TEXT NOT NULL,
+          color TEXT NOT NULL
+        )
+      `);
+      log("Tabela activity_types verificada/criada");
+      await pool.query(`
+        CREATE TABLE IF NOT EXISTS professionals (
+          id SERIAL PRIMARY KEY,
+          name TEXT NOT NULL,
+          initials TEXT NOT NULL,
+          active INTEGER NOT NULL DEFAULT 1
+        )
+      `);
+      log("Tabela professionals verificada/criada");
+      await pool.query(`
+        CREATE TABLE IF NOT EXISTS time_slots (
+          id SERIAL PRIMARY KEY,
+          start_time TEXT NOT NULL,
+          end_time TEXT NOT NULL,
+          interval INTEGER NOT NULL DEFAULT 30,
+          is_base_slot INTEGER NOT NULL DEFAULT 1
+        )
+      `);
+      log("Tabela time_slots verificada/criada");
+      await pool.query(`
+        CREATE TABLE IF NOT EXISTS schedules (
+          id SERIAL PRIMARY KEY,
+          professional_id INTEGER NOT NULL,
+          weekday TEXT NOT NULL,
+          start_time TEXT NOT NULL,
+          end_time TEXT NOT NULL,
+          activity_code TEXT NOT NULL,
+          location TEXT,
+          notes TEXT,
+          updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+        )
+      `);
+      log("Tabela schedules verificada/criada");
+      return true;
+    } catch (error) {
+      log(`Erro ao criar tabelas no Neon PostgreSQL: ${error}`);
+      return false;
+    }
+  } catch (error) {
+    log(`Erro ao criar tabelas no Neon PostgreSQL: ${error}`);
+    return false;
+  }
+}
+async function populateDefaultData() {
+  try {
+    log("Verificando se \xE9 necess\xE1rio adicionar dados padr\xE3o...");
+    const activityTypesResult = await pool.query("SELECT COUNT(*) FROM activity_types");
+    const activityTypesCount = parseInt(activityTypesResult.rows[0].count);
+    if (activityTypesCount === 0) {
+      log("Inserindo tipos de atividade padr\xE3o...");
+      for (const actType of defaultActivityTypes) {
+        try {
+          await pool.query(
+            `INSERT INTO activity_types (code, name, color) 
+             VALUES ($1, $2, $3) 
+             ON CONFLICT (code) DO NOTHING`,
+            [actType.code, actType.name, actType.color]
+          );
+          log(`Tipo de atividade ${actType.code} inserido com sucesso`);
+        } catch (error) {
+          log(`Erro ao inserir tipo de atividade ${actType.code}: ${error}`);
+        }
+      }
+    } else {
+      log(`${activityTypesCount} tipos de atividade j\xE1 existem, pulando inser\xE7\xE3o`);
+    }
+    const timeSlotsResult = await pool.query("SELECT COUNT(*) FROM time_slots");
+    const timeSlotsCount = parseInt(timeSlotsResult.rows[0].count);
+    if (timeSlotsCount === 0) {
+      log("Inserindo slots de tempo padr\xE3o...");
+      const defaultTimeSlots = [
+        { startTime: "08:00", endTime: "08:30", interval: 30, isBaseSlot: 1 },
+        { startTime: "08:30", endTime: "09:00", interval: 30, isBaseSlot: 1 },
+        { startTime: "09:00", endTime: "09:30", interval: 30, isBaseSlot: 1 },
+        { startTime: "09:30", endTime: "10:00", interval: 30, isBaseSlot: 1 },
+        { startTime: "10:00", endTime: "10:30", interval: 30, isBaseSlot: 1 },
+        { startTime: "10:30", endTime: "11:00", interval: 30, isBaseSlot: 1 },
+        { startTime: "11:00", endTime: "11:30", interval: 30, isBaseSlot: 1 },
+        { startTime: "11:30", endTime: "12:00", interval: 30, isBaseSlot: 1 },
+        { startTime: "13:00", endTime: "13:30", interval: 30, isBaseSlot: 1 },
+        { startTime: "13:30", endTime: "14:00", interval: 30, isBaseSlot: 1 },
+        { startTime: "14:00", endTime: "14:30", interval: 30, isBaseSlot: 1 },
+        { startTime: "14:30", endTime: "15:00", interval: 30, isBaseSlot: 1 },
+        { startTime: "15:00", endTime: "15:30", interval: 30, isBaseSlot: 1 },
+        { startTime: "15:30", endTime: "16:00", interval: 30, isBaseSlot: 1 },
+        { startTime: "16:00", endTime: "16:30", interval: 30, isBaseSlot: 1 },
+        { startTime: "16:30", endTime: "17:00", interval: 30, isBaseSlot: 1 },
+        { startTime: "17:00", endTime: "17:30", interval: 30, isBaseSlot: 1 },
+        { startTime: "17:30", endTime: "18:00", interval: 30, isBaseSlot: 1 },
+        { startTime: "18:00", endTime: "18:30", interval: 30, isBaseSlot: 1 },
+        { startTime: "18:30", endTime: "19:00", interval: 30, isBaseSlot: 1 }
+      ];
+      for (const slot of defaultTimeSlots) {
+        try {
+          await pool.query(
+            `INSERT INTO time_slots (start_time, end_time, interval, is_base_slot) 
+             VALUES ($1, $2, $3, $4)
+             ON CONFLICT (start_time, end_time) DO NOTHING`,
+            [slot.startTime, slot.endTime, slot.interval, slot.isBaseSlot]
+          );
+          log(`Slot de tempo ${slot.startTime}-${slot.endTime} inserido com sucesso`);
+        } catch (error) {
+          log(`Erro ao inserir slot de tempo ${slot.startTime}-${slot.endTime}: ${error}`);
+        }
+      }
+    } else {
+      log(`${timeSlotsCount} slots de tempo j\xE1 existem, pulando inser\xE7\xE3o`);
+    }
+    const professionalsResult = await pool.query("SELECT COUNT(*) FROM professionals");
+    const professionalsCount = parseInt(professionalsResult.rows[0].count);
+    if (professionalsCount === 0) {
+      log("Inserindo profissionais padr\xE3o...");
+      const defaultProfessionals = [
+        { name: "Prof. Paulo", initials: "PP", active: 1 },
+        { name: "Profa. Ana Maria", initials: "AM", active: 1 },
+        { name: "Prof. Carlos", initials: "CL", active: 1 },
+        { name: "Prof. Jo\xE3o", initials: "JM", active: 1 },
+        { name: "Profa. Maria", initials: "MM", active: 1 }
+      ];
+      for (const prof of defaultProfessionals) {
+        try {
+          await pool.query(
+            `INSERT INTO professionals (name, initials, active) 
+             VALUES ($1, $2, $3)
+             ON CONFLICT (name) DO NOTHING`,
+            [prof.name, prof.initials, prof.active]
+          );
+          log(`Profissional ${prof.name} inserido com sucesso`);
+        } catch (error) {
+          log(`Erro ao inserir profissional ${prof.name}: ${error}`);
+        }
+      }
+    } else {
+      log(`${professionalsCount} profissionais j\xE1 existem, pulando inser\xE7\xE3o`);
+    }
+    return true;
+  } catch (error) {
+    log(`Erro ao popular dados padr\xE3o no Neon PostgreSQL: ${error}`);
+    return false;
+  }
+}
+async function initializeNeonDb() {
+  try {
+    const connected = await testNeonConnection();
+    if (connected) {
+      const tablesCreated = await createTablesIfNotExist();
+      if (tablesCreated) {
+        await populateDefaultData();
+        return true;
+      } else {
+        log("Falha ao criar tabelas no Neon PostgreSQL");
+        return false;
+      }
+    } else {
+      log("Falha na conex\xE3o com o Neon PostgreSQL");
+      return false;
+    }
+  } catch (error) {
+    log(`Erro ao inicializar o banco de dados Neon: ${error}`);
+    return false;
+  }
+}
+
+// server/index.ts
+log("Usando banco de dados Neon PostgreSQL");
+initializeNeonDb().then((success) => {
+  if (success) {
+    log("Inicializa\xE7\xE3o do banco de dados Neon conclu\xEDda com sucesso!");
+  } else {
+    log("Falha na inicializa\xE7\xE3o do banco de dados Neon, verificando logs para detalhes.");
+  }
+}).catch((err) => {
+  log(`Erro cr\xEDtico na inicializa\xE7\xE3o do banco de dados Neon: ${err}`);
+  log("Verificar se a conex\xE3o STRING est\xE1 correta e a estrutura da base de dados Neon est\xE1 configurada.");
+});
+var app = express3();
+app.use(express3.json());
+app.use(express3.urlencoded({ extended: false }));
+app.use((req, res, next) => {
+  const start = Date.now();
+  const path3 = req.path;
+  let capturedJsonResponse = void 0;
+  const originalResJson = res.json;
+  res.json = function(bodyJson, ...args) {
+    capturedJsonResponse = bodyJson;
+    return originalResJson.apply(res, [bodyJson, ...args]);
+  };
+  res.on("finish", () => {
+    const duration = Date.now() - start;
+    if (path3.startsWith("/api")) {
+      let logLine = `${req.method} ${path3} ${res.statusCode} in ${duration}ms`;
+      if (capturedJsonResponse) {
+        logLine += ` :: ${JSON.stringify(capturedJsonResponse)}`;
+      }
+      if (logLine.length > 80) {
+        logLine = logLine.slice(0, 79) + "\u2026";
+      }
+      log(logLine);
+    }
+  });
+  next();
+});
+(async () => {
+  const server = await registerRoutes(app);
+  app.use((err, _req, res, _next) => {
+    const status = err.status || err.statusCode || 500;
+    const message = err.message || "Internal Server Error";
+    res.status(status).json({ message });
+    throw err;
+  });
+  if (app.get("env") === "development") {
+    await setupVite(app, server);
+  } else {
+    serveStatic(app);
+  }
+  const port = 5e3;
+  server.listen({
+    port,
+    host: "0.0.0.0",
+    reusePort: true
+  }, () => {
+    log(`serving on port ${port}`);
+  });
+})();
