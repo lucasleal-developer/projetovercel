@@ -1,17 +1,39 @@
+# Dependências
 node_modules
-dist
-dist-ssr
-.DS_Store
-server/public
-vite.config.ts.*
-*.tar.gz
+/.pnp
+.pnp.js
 
-# Ignorar arquivos de ambiente local
+# Arquivos de produção
+/dist
+/build
+
+# Arquivos de cache
+.DS_Store
+.turbo
+.eslintcache
+.coverage
+.next
+.vercel
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# Variáveis de ambiente
 .env
 .env.local
 .env.development.local
 .env.test.local
 .env.production.local
 
-# Ignorar build Vercel
-.vercel
+# Arquivos específicos do Replit
+.replit
+.cache
+.config
+.upm
+replit.nix
+
+# Outros
+*.tsbuildinfo
