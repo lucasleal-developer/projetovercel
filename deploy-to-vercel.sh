@@ -11,7 +11,7 @@ echo "Acionando webhook de deploy do Vercel..."
 RESPONSE=$(curl -s -X POST "$DEPLOY_HOOK_URL")
 
 # Verificando resposta
-if [[ $RESPONSE == *"jobId"* ]]; then
+if [[ $RESPONSE == *"job"* && $RESPONSE == *"id"* && $RESPONSE == *"PENDING"* ]]; then
   echo "✅ Deploy iniciado com sucesso no Vercel!"
   echo "Você pode acompanhar o progresso no dashboard do Vercel."
   echo "Resposta: $RESPONSE"
