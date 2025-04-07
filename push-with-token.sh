@@ -38,3 +38,11 @@ git pull --rebase origin main
 # Tentar fazer push
 echo "Enviando alterações para o GitHub..."
 git push origin main
+
+# Acionar deploy no Vercel após o push
+if [ $? -eq 0 ]; then
+  echo -e "\n===== Acionando deploy no Vercel ====="
+  ./deploy-to-vercel.sh
+else
+  echo "Erro no push para o GitHub. O deploy no Vercel não será acionado."
+fi
