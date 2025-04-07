@@ -2,6 +2,7 @@ import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 import { initializeNeonDb } from "./neondb";
+import { setupStaticServing } from "./staticServe";
 
 log("Usando banco de dados Neon PostgreSQL");
 // Inicializa o banco de dados Neon
@@ -69,7 +70,16 @@ app.use((req, res, next) => {
   if (app.get("env") === "development") {
     await setupVite(app, server);
   } else {
-    serveStatic(app);
+    // Use our improved static serving for production
+    log("Ambiente de produção: configurando servidor de arquivos estáticos");
+    setupStaticServing(app);
+    
+    // Manter o serveStatic como fallback
+    try {
+      serveStatic(app);
+    } catch (error) {
+      log(`Erro ao usar serveStatic padrão: ${error}`);
+    }
   }
 
   // ALWAYS serve the app on port 5000

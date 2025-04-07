@@ -7,6 +7,7 @@ import Home from "@/pages/index";
 import Schedule from "@/pages/schedule";
 import Settings from "@/pages/settings";
 import ProfessorSemanal from "@/pages/professor-semanal";
+import Status from "@/pages/status";
 
 function Router() {
   return (
@@ -16,6 +17,7 @@ function Router() {
       <Route path="/settings" component={Settings} />
       <Route path="/professor-semanal" component={ProfessorSemanal} />
       <Route path="/compartilhado" component={ProfessorSemanal} /> {/* Rota para visualizações compartilhadas */}
+      <Route path="/status" component={Status} />
       <Route component={NotFound} />
     </Switch>
   );
@@ -25,7 +27,7 @@ function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <Router />
-      {/* Toaster removido a pedido do usuário - sem notificações */}
+      <Toaster />
     </QueryClientProvider>
   );
 }

@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
 import { Calendar, Clock, Users } from "lucide-react";
+import { DiagnoseButton } from "@/components/DiagnoseButton";
 
 export default function Home() {
   return (
@@ -60,6 +61,10 @@ export default function Home() {
           </div>
         </div>
       </main>
+      
+      <div className="fixed bottom-4 right-4 z-10">
+        <DiagnoseButton />
+      </div>
       
       <Footer />
     </div>

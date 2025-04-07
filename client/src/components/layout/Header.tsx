@@ -1,5 +1,5 @@
 import { Link, useLocation } from "wouter";
-import { Calendar, Settings, User, CalendarRange } from "lucide-react";
+import { Calendar, Settings, User, CalendarRange, BarChart } from "lucide-react";
 import { useEffect, useState } from "react";
 
 export function Header() {
@@ -42,12 +42,20 @@ export function Header() {
             )}
             {/* Mostrar o link de configurações apenas se não for um link compartilhado */}
             {!isSharedLink && (
-              <Link href="/settings">
-                <div className={`flex items-center text-sm font-medium ${location === '/settings' ? 'text-primary' : 'text-gray-600 hover:text-primary'} cursor-pointer`}>
-                  <Settings className="mr-2 h-4 w-4" />
-                  Configurações
-                </div>
-              </Link>
+              <>
+                <Link href="/status">
+                  <div className={`flex items-center text-sm font-medium ${location === '/status' ? 'text-primary' : 'text-gray-600 hover:text-primary'} cursor-pointer`}>
+                    <BarChart className="mr-2 h-4 w-4" />
+                    Status
+                  </div>
+                </Link>
+                <Link href="/settings">
+                  <div className={`flex items-center text-sm font-medium ${location === '/settings' ? 'text-primary' : 'text-gray-600 hover:text-primary'} cursor-pointer`}>
+                    <Settings className="mr-2 h-4 w-4" />
+                    Configurações
+                  </div>
+                </Link>
+              </>
             )}
           </nav>
           

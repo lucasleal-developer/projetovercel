@@ -9,6 +9,8 @@ import {
   type WeekDay
 } from "@shared/schema";
 import { z } from "zod";
+import { pool } from "./db";
+import { log } from "./vite";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   const apiRouter = express.Router();
@@ -307,6 +309,67 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(204).end();
     } catch (error) {
       res.status(500).json({ message: "Erro ao excluir escala" });
+    }
+  });
+  
+  // Rota de diagnóstico para verificar conexão com banco de dados
+  apiRouter.get("/diagnose", async (req: Request, res: Response) => {
+    try {
+      log("Executando diagnóstico da API e conexões");
+      
+      // Status inicial da resposta
+      const status = {
+        api: "ok",
+        database: "desconhecido",
+        checks: [] as string[],
+        errors: [] as string[]
+      };
+      
+      // Verifica a conexão com o banco de dados
+      try {
+        // Tenta realizar uma consulta simples para verificar a conexão
+        const result = await pool.query('SELECT NOW() as now');
+        if (result.rows && result.rows.length > 0) {
+          status.database = "ok";
+          status.checks.push(`Conexão com banco de dados estabelecida em: ${result.rows[0].now}`);
+          
+          // Verificar se conseguimos acessar dados
+          try {
+            const timeSlots = await storage.getAllTimeSlots();
+            status.checks.push(`Recuperados ${timeSlots.length} slots de tempo`);
+            
+            const professionals = await storage.getAllProfessionals();
+            status.checks.push(`Recuperados ${professionals.length} profissionais`);
+            
+            const activityTypes = await storage.getAllActivityTypes();
+            status.checks.push(`Recuperados ${activityTypes.length} tipos de atividades`);
+          } catch (error: any) {
+            status.errors.push(`Erro ao acessar dados: ${error.message || 'Erro desconhecido'}`);
+          }
+        } else {
+          status.database = "erro";
+          status.errors.push("Consulta ao banco de dados não retornou resultados");
+        }
+      } catch (error: any) {
+        status.database = "erro";
+        status.errors.push(`Erro na conexão com banco de dados: ${error.message || 'Erro desconhecido'}`);
+      }
+      
+      // Verificação adicional de variáveis de ambiente
+      const dbUrl = process.env.DATABASE_URL ? "configurado" : "não configurado";
+      status.checks.push(`DATABASE_URL está ${dbUrl}`);
+      
+      // Informações sobre ambiente
+      status.checks.push(`Ambiente: ${process.env.NODE_ENV || 'desenvolvimento'}`);
+      
+      // Responde com o status diagnóstico
+      res.json(status);
+    } catch (error: any) {
+      log(`Erro ao executar diagnóstico: ${error}`);
+      res.status(500).json({ 
+        message: "Erro ao executar diagnóstico", 
+        error: error.message || 'Erro desconhecido' 
+      });
     }
   });
   
